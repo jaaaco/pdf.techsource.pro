@@ -1,10 +1,28 @@
 /**
  * ToolLayout Component - Shared layout for all tool pages
- * Validates: Requirements 8.1, 9.4
+ * Modern 2026 design system integration
  */
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Container,
+  Box,
+  Button,
+  IconButton,
+  alpha,
+  useTheme,
+  Paper
+} from '@mui/material';
+import {
+  ArrowBack as BackIcon,
+  GitHub as GitHubIcon,
+  Description as LicenseIcon,
+  Security as SecurityIcon
+} from '@mui/icons-material';
 import ErrorBoundary from './ErrorBoundary';
 
 export interface ToolLayoutProps {
@@ -27,227 +45,191 @@ const ToolLayout: React.FC<ToolLayoutProps> = ({
   className = ''
 }) => {
   const location = useLocation();
+  const theme = useTheme();
 
   const tools = [
-    { path: '/compress', name: 'Compress', icon: '🗜️' },
-    { path: '/merge', name: 'Merge', icon: '📑' },
-    { path: '/split', name: 'Split', icon: '✂️' },
-    { path: '/ocr', name: 'OCR', icon: '🔍' }
+    { path: '/compress', name: 'Compress' },
+    { path: '/merge', name: 'Merge' },
+    { path: '/split', name: 'Split' },
+    { path: '/ocr', name: 'OCR' }
   ];
 
   return (
-    <div className={`tool-layout ${className}`} style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
-      <header style={{ 
-        backgroundColor: '#ffffff', 
-        borderBottom: '1px solid #e5e7eb',
-        padding: '1rem 0'
-      }}>
-        <div style={{ 
-          maxWidth: '1200px', 
-          margin: '0 auto', 
-          padding: '0 1rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between'
-        }}>
-          {/* Logo and title */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <Link 
-              to="/" 
-              style={{ 
-                textDecoration: 'none', 
-                color: '#1f2937',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}
-            >
-              <div style={{ fontSize: '1.5rem' }}>📄</div>
-              <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>
-                PDF Toolkit
-              </h1>
-            </Link>
-            
-            {toolName && (
-              <>
-                <span style={{ color: '#d1d5db' }}>•</span>
-                <span style={{ color: '#6b7280', fontSize: '1rem' }}>{toolName}</span>
-              </>
-            )}
-          </div>
+    <Box className={className} sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      {/* Background Glow */}
+      <div className="page-glow" />
 
-          {/* Navigation */}
+      {/* Header */}
+      <AppBar position="sticky" elevation={0} sx={{ background: alpha(theme.palette.background.default, 0.7), backdropFilter: 'blur(20px)' }}>
+        <Toolbar sx={{ justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <IconButton
+              component={Link}
+              to="/"
+              edge="start"
+              color="inherit"
+              size="small"
+              sx={{ backgroundColor: alpha(theme.palette.primary.main, 0.05) }}
+            >
+              <BackIcon fontSize="small" />
+            </IconButton>
+            <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: '-0.02em', color: 'primary.main' }}>
+              PDF.KIT
+            </Typography>
+            {toolName && (
+              <Box sx={{ display: 'none', sm: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="body2" color="text.disabled">/</Typography>
+                <Typography variant="body2" fontWeight={700} color="text.secondary">{toolName}</Typography>
+              </Box>
+            )}
+          </Box>
+
           {showNavigation && (
-            <nav style={{ display: 'flex', gap: '0.5rem' }}>
+            <Box sx={{ display: 'none', lg: 'flex', gap: 1 }}>
               {tools.map((tool) => (
-                <Link
+                <Button
                   key={tool.path}
+                  component={Link}
                   to={tool.path}
-                  style={{
-                    textDecoration: 'none',
-                    padding: '0.5rem 1rem',
-                    borderRadius: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    fontSize: '0.875rem',
-                    fontWeight: '500',
-                    backgroundColor: location.pathname === tool.path ? '#eff6ff' : 'transparent',
-                    color: location.pathname === tool.path ? '#2563eb' : '#6b7280',
-                    border: location.pathname === tool.path ? '1px solid #bfdbfe' : '1px solid transparent',
-                    transition: 'all 0.2s ease-in-out'
-                  }}
-                  onMouseOver={(e) => {
-                    if (location.pathname !== tool.path) {
-                      e.currentTarget.style.backgroundColor = '#f9fafb';
-                      e.currentTarget.style.color = '#374151';
-                    }
-                  }}
-                  onMouseOut={(e) => {
-                    if (location.pathname !== tool.path) {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = '#6b7280';
+                  size="small"
+                  sx={{
+                    fontWeight: 700,
+                    color: location.pathname === tool.path ? 'primary.main' : 'text.secondary',
+                    backgroundColor: location.pathname === tool.path ? alpha(theme.palette.primary.main, 0.05) : 'transparent',
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.1),
                     }
                   }}
                 >
-                  <span>{tool.icon}</span>
                   {tool.name}
-                </Link>
+                </Button>
               ))}
-            </nav>
+            </Box>
           )}
-        </div>
-      </header>
+
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {import.meta.env.VITE_GITHUB_URL && (
+              <IconButton
+                color="inherit"
+                href={import.meta.env.VITE_GITHUB_URL}
+                target="_blank"
+                size="small"
+              >
+                <GitHubIcon fontSize="small" />
+              </IconButton>
+            )}
+            <IconButton
+              color="inherit"
+              component={Link}
+              to="/attribution"
+              size="small"
+            >
+              <LicenseIcon fontSize="small" />
+            </IconButton>
+          </Box>
+        </Toolbar>
+      </AppBar>
 
       {/* Main content */}
-      <main style={{ flex: 1, padding: '2rem 0' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 1rem' }}>
-          {/* Page header */}
-          <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
-            <h1 style={{ 
-              margin: '0 0 0.5rem 0', 
-              fontSize: '2.5rem', 
-              fontWeight: 'bold',
-              color: '#1f2937'
-            }}>
+      <Box component="main" sx={{ flex: 1, pt: { xs: 6, md: 10 }, pb: 12 }}>
+        <Container maxWidth="lg">
+          {/* Page header (Hero Style) */}
+          <Box sx={{ mb: { xs: 6, md: 10 }, textAlign: 'center' }}>
+            <Typography
+              variant="h1"
+              className="gradient-text float-anim"
+              sx={{
+                mb: 2,
+                fontWeight: 900,
+                fontSize: { xs: '2.5rem', md: '4rem' },
+                lineHeight: 1
+              }}
+            >
               {title}
-            </h1>
-            <p style={{ 
-              margin: 0, 
-              fontSize: '1.125rem', 
-              color: '#6b7280',
-              maxWidth: '600px',
-              marginLeft: 'auto',
-              marginRight: 'auto'
-            }}>
+            </Typography>
+            <Typography
+              variant="h5"
+              color="text.secondary"
+              sx={{ maxWidth: 700, mx: 'auto', fontWeight: 500, opacity: 0.9 }}
+            >
               {description}
-            </p>
-          </div>
+            </Typography>
+          </Box>
 
-          {/* Privacy notice */}
-          <div style={{
-            backgroundColor: '#f0f9ff',
-            border: '1px solid #bae6fd',
-            borderRadius: '8px',
-            padding: '1rem',
-            marginBottom: '2rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem'
+          {/* Privacy notice - Integrated Glass Style */}
+          <Paper
+            sx={{
+              p: 2,
+              mb: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 2,
+              background: alpha(theme.palette.success.main, 0.05),
+              backdropFilter: 'blur(10px)',
+              border: `1px solid ${alpha(theme.palette.success.main, 0.1)}`,
+              borderRadius: 4,
+              boxShadow: 'none'
+            }}
+          >
+            <SecurityIcon sx={{ color: 'success.main', fontSize: '20px' }} />
+            <Typography variant="body2" color="success.main" fontWeight={700}>
+              Private • Browser-Side • Zero Data Transfer
+            </Typography>
+          </Paper>
+
+          {/* Tool content Area (Glass Box) */}
+          <Box sx={{
+            p: { xs: 0, md: 4 },
+            borderRadius: 6,
+            background: 'transparent'
           }}>
-            <div style={{ fontSize: '1.25rem' }}>🔒</div>
-            <div style={{ fontSize: '0.875rem', color: '#0c4a6e' }}>
-              <strong>Privacy First:</strong> All processing happens entirely in your browser. 
-              Your files never leave your device and no data is sent to any server.
-            </div>
-          </div>
-
-          {/* Tool content */}
-          <ErrorBoundary>
-            {children}
-          </ErrorBoundary>
-        </div>
-      </main>
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
+          </Box>
+        </Container>
+      </Box>
 
       {/* Footer */}
       {showAttribution && (
-        <footer style={{ 
-          backgroundColor: '#f9fafb', 
-          borderTop: '1px solid #e5e7eb',
-          padding: '2rem 0'
-        }}>
-          <div style={{ 
-            maxWidth: '1200px', 
-            margin: '0 auto', 
-            padding: '0 1rem',
-            textAlign: 'center'
-          }}>
-            <div style={{ marginBottom: '1rem' }}>
-              <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', fontWeight: 'bold', color: '#374151' }}>
-                PDF Toolkit
-              </h3>
-              <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280' }}>
-                Open-source, privacy-first PDF tools that run entirely in your browser
-              </p>
-            </div>
+        <Box
+          component="footer"
+          sx={{
+            py: 6,
+            borderTop: '1px solid rgba(0,0,0,0.05)',
+            background: alpha(theme.palette.background.paper, 0.5),
+            backdropFilter: 'blur(8px)'
+          }}
+        >
+          <Container maxWidth="lg">
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 3 }}>
+              <Box>
+                <Typography variant="h6" fontWeight={800} color="primary.main">PDF.KIT</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Next-gen PDF toolkit • Pure browser power
+                </Typography>
+              </Box>
 
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              gap: '2rem',
-              flexWrap: 'wrap',
-              marginBottom: '1rem'
-            }}>
-              <Link 
-                to="/attribution" 
-                style={{ 
-                  color: '#3b82f6', 
-                  textDecoration: 'none', 
-                  fontSize: '0.875rem' 
-                }}
-              >
-                Attribution & Licenses
-              </Link>
-              {import.meta.env.VITE_GITHUB_URL && (
-                <>
-                  <a
-                    href={import.meta.env.VITE_GITHUB_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color: '#3b82f6',
-                      textDecoration: 'none',
-                      fontSize: '0.875rem'
-                    }}
-                  >
-                    Source Code
+              <Box sx={{ display: 'flex', gap: 3 }}>
+                <Link to="/attribution" style={{ color: theme.palette.primary.main, textDecoration: 'none', fontWeight: 600, fontSize: '0.875rem' }}>
+                  Licenses
+                </Link>
+                {import.meta.env.VITE_GITHUB_URL && (
+                  <a href={import.meta.env.VITE_GITHUB_URL} target="_blank" rel="noopener noreferrer" style={{ color: theme.palette.primary.main, textDecoration: 'none', fontWeight: 600, fontSize: '0.875rem' }}>
+                    Github
                   </a>
-                  <a
-                    href={`${import.meta.env.VITE_GITHUB_URL}/issues`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color: '#3b82f6',
-                      textDecoration: 'none',
-                      fontSize: '0.875rem'
-                    }}
-                  >
-                    Report Issues
-                  </a>
-                </>
-              )}
-            </div>
+                )}
+              </Box>
 
-            <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-              <p style={{ margin: 0 }}>
-                Built with ❤️ using WebAssembly • No servers, no tracking, no data collection
-              </p>
-            </div>
-          </div>
-        </footer>
+              <Typography variant="caption" color="text.disabled">
+                Built with WebAssembly • No servers • No tracking
+              </Typography>
+            </Box>
+          </Container>
+        </Box>
       )}
-    </div>
+    </Box>
   );
 };
 

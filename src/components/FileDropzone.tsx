@@ -1,9 +1,21 @@
 /**
  * FileDropzone Component - Drag-and-drop file upload interface
- * Validates: Requirements 8.1, 8.2
+ * Modern 2026 design system integration
  */
 
 import React, { useCallback, useState, useRef } from 'react';
+import {
+  Box,
+  Typography,
+  alpha,
+  useTheme,
+  Paper,
+  CircularProgress
+} from '@mui/material';
+import {
+  CloudUpload as UploadIcon,
+  CheckCircle as ValidIcon,
+} from '@mui/icons-material';
 import { FileUtils } from '@/lib/file-utils';
 import { PDFValidator } from '@/lib/pdf-validator';
 
@@ -33,7 +45,6 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
   maxFileSize = 500 * 1024 * 1024, // 500MB default
   disabled = false,
   acceptedTypes = ['.pdf'],
-  className = '',
   children
 }) => {
   const [state, setState] = useState<FileDropzoneState>({
@@ -42,6 +53,7 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
     dragCounter: 0
   });
 
+  const theme = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropzoneRef = useRef<HTMLDivElement>(null);
 
@@ -144,14 +156,12 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
   }, [validateFiles, onFilesSelected]);
 
   /**
-   * Handle drag enter
+   * Handle drag events
    */
   const handleDragEnter = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.stopPropagation();
-
     if (disabled) return;
-
     setState(prev => ({
       ...prev,
       dragCounter: prev.dragCounter + 1,
@@ -159,15 +169,10 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
     }));
   }, [disabled]);
 
-  /**
-   * Handle drag leave
-   */
   const handleDragLeave = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.stopPropagation();
-
     if (disabled) return;
-
     setState(prev => {
       const newCounter = prev.dragCounter - 1;
       return {
@@ -178,28 +183,17 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
     });
   }, [disabled]);
 
-  /**
-   * Handle drag over
-   */
   const handleDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.stopPropagation();
-
     if (disabled) return;
-
-    // Set drag effect
     event.dataTransfer.dropEffect = 'copy';
   }, [disabled]);
 
-  /**
-   * Handle file drop
-   */
   const handleDrop = useCallback(async (event: React.DragEvent) => {
     event.preventDefault();
     event.stopPropagation();
-
     if (disabled) return;
-
     setState(prev => ({
       ...prev,
       isDragOver: false,
@@ -215,17 +209,11 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
     }
   }, [disabled, validateFiles, onFilesSelected]);
 
-  /**
-   * Handle click to open file dialog
-   */
   const handleClick = useCallback(() => {
     if (disabled || state.isValidating) return;
     fileInputRef.current?.click();
   }, [disabled, state.isValidating]);
 
-  /**
-   * Handle keyboard interaction
-   */
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
@@ -233,19 +221,9 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
     }
   }, [handleClick]);
 
-  // Generate CSS classes
-  const dropzoneClasses = [
-    'file-dropzone',
-    state.isDragOver ? 'file-dropzone--drag-over' : '',
-    disabled ? 'file-dropzone--disabled' : '',
-    state.isValidating ? 'file-dropzone--validating' : '',
-    className
-  ].filter(Boolean).join(' ');
-
   return (
-    <div
+    <Paper
       ref={dropzoneRef}
-      className={dropzoneClasses}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -256,22 +234,36 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
       role="button"
       aria-label={`Drop ${multiple ? 'files' : 'file'} here or click to select`}
       aria-disabled={disabled}
-      style={{
-        border: '2px dashed #ccc',
-        borderRadius: '8px',
-        padding: '2rem',
+      sx={{
+        p: 6,
         textAlign: 'center',
         cursor: disabled ? 'not-allowed' : 'pointer',
-        backgroundColor: state.isDragOver ? '#f0f8ff' : 'transparent',
-        borderColor: state.isDragOver ? '#007bff' : '#ccc',
+        background: state.isDragOver
+          ? alpha(theme.palette.primary.main, 0.05)
+          : 'rgba(255, 255, 255, 0.4)',
+        backdropFilter: 'blur(12px)',
+        border: `2px dashed ${state.isDragOver ? theme.palette.primary.main : alpha(theme.palette.text.disabled, 0.3)}`,
+        borderRadius: 6,
         opacity: disabled ? 0.6 : 1,
-        transition: 'all 0.2s ease-in-out',
-        minHeight: '120px',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        minHeight: '240px',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '1rem'
+        gap: 3,
+        transform: state.isDragOver ? 'scale(1.01)' : 'scale(1)',
+        boxShadow: state.isDragOver
+          ? `0 20px 25px -5px ${alpha(theme.palette.primary.main, 0.1)}`
+          : '0 4px 6px -1px rgb(0 0 0 / 0.05)',
+        '&:hover': {
+          borderColor: theme.palette.primary.main,
+          background: alpha(theme.palette.primary.main, 0.02),
+        },
+        '&:focus': {
+          outline: `2px solid ${theme.palette.primary.main}`,
+          outlineOffset: '4px',
+        }
       }}
     >
       {/* Hidden file input */}
@@ -289,76 +281,80 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
       {children || (
         <>
           {state.isValidating ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  border: '2px solid #007bff',
-                  borderTop: '2px solid transparent',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite'
-                }}
-              />
-              <span>Validating files...</span>
-            </div>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <CircularProgress size={40} thickness={4} />
+              <Typography variant="body1" fontWeight={600} color="text.secondary">
+                Analyzing Documents...
+              </Typography>
+            </Box>
           ) : (
             <>
-              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
-                📄
-              </div>
-              <div>
-                <p style={{ margin: 0, fontWeight: 'bold' }}>
+              <Box
+                sx={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: '50%',
+                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mb: 1,
+                  color: 'primary.main',
+                  transition: 'all 0.3s ease',
+                  transform: state.isDragOver ? 'translateY(-10px)' : 'none'
+                }}
+              >
+                {state.isDragOver ? <ValidIcon sx={{ fontSize: 40 }} /> : <UploadIcon sx={{ fontSize: 40 }} />}
+              </Box>
+
+              <Box>
+                <Typography variant="h5" fontWeight={800} gutterBottom>
                   {state.isDragOver
-                    ? `Drop ${multiple ? 'files' : 'file'} here`
-                    : `Drag and drop ${multiple ? 'PDF files' : 'a PDF file'} here`
+                    ? `Release to Begin`
+                    : `Drop your PDF${multiple ? 's' : ''} here`
                   }
-                </p>
-                <p style={{ margin: '0.5rem 0 0 0', color: '#666', fontSize: '0.9rem' }}>
-                  or click to select {multiple ? 'files' : 'a file'}
-                </p>
-              </div>
-              <div style={{ fontSize: '0.8rem', color: '#888' }}>
-                <p style={{ margin: 0 }}>
-                  Accepted: {acceptedTypes.join(', ')} • 
-                  Max size: {FileUtils.formatFileSize(maxFileSize)}
-                  {multiple && ` • Max files: ${maxFiles}`}
-                </p>
-              </div>
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                  or <span style={{ color: theme.palette.primary.main, fontWeight: 700, textDecoration: 'underline' }}>browse files</span> from your device
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                <Chip
+                  label={`Max ${FileUtils.formatFileSize(maxFileSize)}`}
+                  sx={{ fontWeight: 600, color: 'text.disabled', border: `1px solid ${alpha(theme.palette.text.disabled, 0.2)}` }}
+                />
+                <Chip
+                  label="PDF Only"
+                  sx={{ fontWeight: 600, color: 'text.disabled', border: `1px solid ${alpha(theme.palette.text.disabled, 0.2)}` }}
+                />
+              </Box>
             </>
           )}
         </>
       )}
+    </Paper>
+  );
+};
 
-      {/* CSS Animation */}
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        
-        .file-dropzone {
-          position: relative;
-        }
-        
-        .file-dropzone:focus {
-          outline: 2px solid #007bff;
-          outline-offset: 2px;
-        }
-        
-        .file-dropzone--drag-over {
-          transform: scale(1.02);
-        }
-        
-        .file-dropzone--disabled {
-          cursor: not-allowed !important;
-        }
-        
-        .file-dropzone--validating {
-          pointer-events: none;
-        }
-      `}</style>
-    </div>
+interface ChipProps {
+  label: string;
+  sx: object;
+}
+
+const Chip: React.FC<ChipProps> = ({ label, sx }) => {
+  return (
+    <Box
+      sx={{
+        px: 1.5,
+        py: 0.5,
+        borderRadius: 2,
+        fontSize: '0.75rem',
+        ...sx
+      }}
+    >
+      {label}
+    </Box>
   );
 };
 
