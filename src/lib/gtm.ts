@@ -37,18 +37,6 @@ export const initGTM = (config: GTMConfig): void => {
   const firstScript = document.getElementsByTagName('script')[0]
   firstScript.parentNode?.insertBefore(script, firstScript)
 
-  // Add noscript fallback at the beginning of body
-  const noscript = document.createElement('noscript')
-  const iframe = document.createElement('iframe')
-  iframe.src = `https://www.googletagmanager.com/ns.html?id=${config.id}`
-  iframe.height = '0'
-  iframe.width = '0'
-  iframe.style.display = 'none'
-  iframe.style.visibility = 'hidden'
-  noscript.appendChild(iframe)
-
-  document.body.insertBefore(noscript, document.body.firstChild)
-
   console.log(`[GTM] Initialized with ID: ${config.id}`)
 }
 
