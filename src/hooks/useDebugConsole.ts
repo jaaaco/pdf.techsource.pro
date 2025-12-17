@@ -34,7 +34,8 @@ export const useDebugConsole = (): [boolean, () => void] => {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Ctrl+Shift+D or Cmd+Shift+D
-      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'D') {
+      const key = event.key.toLowerCase()
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && key === 'd') {
         event.preventDefault()
         toggleDebugConsole()
       }
