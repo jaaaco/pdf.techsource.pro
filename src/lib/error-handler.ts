@@ -3,7 +3,7 @@
  * Validates: Requirements 2.4, 10.5
  */
 
-import * as Sentry from '@sentry/react'
+import { reportException } from '@/lib/monitoring'
 
 export interface ErrorContext {
   tool?: string;
@@ -376,35 +376,32 @@ export class ErrorHandler {
       console.groupEnd();
     }
 
-    // Send error to Sentry if DSN is configured
-    if (import.meta.env.VITE_SENTRY_DSN) {
-      Sentry.captureException(processedError.originalError, {
-        level: processedError.severity === 'critical' || processedError.severity === 'high' ? 'error' : 'warning',
-        tags: {
-          errorType: processedError.type,
-          tool: processedError.context.tool || 'unknown',
-          operation: processedError.context.operation || 'unknown',
+    reportException(processedError.originalError, {
+      level: processedError.severity === 'critical' || processedError.severity === 'high' ? 'error' : 'warning',
+      tags: {
+        errorType: processedError.type,
+        tool: processedError.context.tool || 'unknown',
+        operation: processedError.context.operation || 'unknown',
+      },
+      contexts: {
+        error: {
+          type: processedError.type,
+          severity: processedError.severity,
+          recoverable: processedError.recovery.canRecover,
         },
-        contexts: {
-          error: {
-            type: processedError.type,
-            severity: processedError.severity,
-            recoverable: processedError.recovery.canRecover,
-          },
-          context: {
-            fileName: processedError.context.fileName,
-            fileSize: processedError.context.fileSize,
-            memoryUsage: processedError.context.memoryUsage,
-            userAgent: processedError.context.userAgent,
-          },
+        context: {
+          fileName: processedError.context.fileName,
+          fileSize: processedError.context.fileSize,
+          memoryUsage: processedError.context.memoryUsage,
+          userAgent: processedError.context.userAgent,
         },
-        extra: {
-          userMessage: processedError.message,
-          recoverySuggestions: processedError.recovery.suggestions,
-          autoRetry: processedError.recovery.autoRetry,
-        },
-      })
-    }
+      },
+      extra: {
+        userMessage: processedError.message,
+        recoverySuggestions: processedError.recovery.suggestions,
+        autoRetry: processedError.recovery.autoRetry,
+      },
+    })
   }
 
   /**

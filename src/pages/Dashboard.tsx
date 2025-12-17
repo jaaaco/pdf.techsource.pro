@@ -134,11 +134,21 @@ const Dashboard: React.FC = () => {
             PDF Toolkit
           </Typography>
           {import.meta.env.VITE_GITHUB_URL && (
-            <IconButton color="inherit" href={import.meta.env.VITE_GITHUB_URL} target="_blank">
+            <IconButton 
+              color="inherit" 
+              href={import.meta.env.VITE_GITHUB_URL} 
+              target="_blank"
+              aria-label="View the project on GitHub"
+            >
               <GitHubIcon />
             </IconButton>
           )}
-          <IconButton color="inherit" component={Link} to="/attribution">
+          <IconButton 
+            color="inherit" 
+            component={Link} 
+            to="/attribution"
+            aria-label="Open attribution and licenses"
+          >
             <LicenseIcon />
           </IconButton>
         </Toolbar>
@@ -165,6 +175,7 @@ const Dashboard: React.FC = () => {
           
           <Typography 
             variant="h5" 
+            component="p"
             color="text.secondary" 
             sx={{ mb: 4, maxWidth: 600, mx: 'auto' }}
           >
@@ -172,10 +183,26 @@ const Dashboard: React.FC = () => {
           </Typography>
           
           <Box sx={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 1 }}>
-            <Chip icon={<SecurityIcon />} label="100% Private" color="success" />
-            <Chip icon={<SpeedIcon />} label="No Upload Required" color="primary" />
-            <Chip icon={<OfflineIcon />} label="Works Offline" color="info" />
-            <Chip icon={<MobileIcon />} label="Mobile Friendly" color="secondary" />
+            {[
+              { label: '100% Private', Icon: SecurityIcon, color: theme.palette.success.main },
+              { label: 'No Upload Required', Icon: SpeedIcon, color: theme.palette.primary.main },
+              { label: 'Works Offline', Icon: OfflineIcon, color: theme.palette.info.main },
+              { label: 'Mobile Friendly', Icon: MobileIcon, color: theme.palette.secondary.main },
+            ].map(({ label, Icon, color }) => (
+              <Chip
+                key={label}
+                icon={<Icon fontSize="small" sx={{ color }} aria-hidden="true" />}
+                label={label}
+                sx={{
+                  fontWeight: 600,
+                  backgroundColor: alpha(color, 0.15),
+                  color,
+                  '& .MuiChip-icon': {
+                    color,
+                  },
+                }}
+              />
+            ))}
           </Box>
         </Box>
 
@@ -248,9 +275,15 @@ const Dashboard: React.FC = () => {
                     mb: 2
                   }}
                 >
-                  <Typography variant="h4">📁</Typography>
+                  <Typography 
+                    variant="h4" 
+                    component="span" 
+                    aria-hidden="true"
+                  >
+                    📁
+                  </Typography>
                 </Box>
-                <Typography variant="h6" gutterBottom>1. Select Files</Typography>
+                <Typography variant="h6" component="h3" gutterBottom>1. Select Files</Typography>
                 <Typography variant="body2" color="text.secondary">
                   Drag and drop or click to select your PDF files
                 </Typography>
@@ -272,9 +305,15 @@ const Dashboard: React.FC = () => {
                     mb: 2
                   }}
                 >
-                  <Typography variant="h4">⚙️</Typography>
+                  <Typography 
+                    variant="h4" 
+                    component="span" 
+                    aria-hidden="true"
+                  >
+                    ⚙️
+                  </Typography>
                 </Box>
-                <Typography variant="h6" gutterBottom>2. Process Locally</Typography>
+                <Typography variant="h6" component="h3" gutterBottom>2. Process Locally</Typography>
                 <Typography variant="body2" color="text.secondary">
                   All processing happens in your browser - no uploads
                 </Typography>
@@ -296,9 +335,15 @@ const Dashboard: React.FC = () => {
                     mb: 2
                   }}
                 >
-                  <Typography variant="h4">💾</Typography>
+                  <Typography 
+                    variant="h4" 
+                    component="span" 
+                    aria-hidden="true"
+                  >
+                    💾
+                  </Typography>
                 </Box>
-                <Typography variant="h6" gutterBottom>3. Download Results</Typography>
+                <Typography variant="h6" component="h3" gutterBottom>3. Download Results</Typography>
                 <Typography variant="body2" color="text.secondary">
                   Get your processed files instantly
                 </Typography>

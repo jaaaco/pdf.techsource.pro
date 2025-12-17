@@ -81,17 +81,22 @@
 [functions]
   directory = "netlify/functions"
 
-# Plugin configuration
-[[plugins]]
+## Lighthouse audits only on production after deploy is live
+[[context.production.plugins]]
   package = "@netlify/plugin-lighthouse"
-  
-  [plugins.inputs.thresholds]
+
+  [context.production.plugins.inputs.settings]
+    preset = "desktop"
+
+  [context.production.plugins.inputs.thresholds]
     performance = 0.8
     accessibility = 0.9
     best-practices = 0.9
     seo = 0.9
 
-# Branch-specific settings
+  [[context.production.plugins.inputs.audits]]
+    url = "https://pdf.techsource.pro/"
+
 [context.production]
   command = "npm run build"
   

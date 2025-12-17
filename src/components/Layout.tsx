@@ -113,6 +113,7 @@ const Layout: React.FC<LayoutProps> = ({
               color="inherit"
               onClick={() => navigate(-1)}
               sx={{ mr: 2 }}
+              aria-label="Go back"
             >
               <BackIcon />
             </IconButton>
@@ -152,6 +153,7 @@ const Layout: React.FC<LayoutProps> = ({
                 target="_blank"
                 size="small"
                 title="Buy me a coffee"
+                aria-label="Support PDF Toolkit on Buy Me a Coffee"
                 sx={{
                   '&:hover': {
                     color: '#FFDD00'
@@ -168,6 +170,7 @@ const Layout: React.FC<LayoutProps> = ({
                 target="_blank"
                 size="small"
                 title="View on GitHub"
+                aria-label="View the project on GitHub"
               >
                 <GitHubIcon />
               </IconButton>
@@ -177,6 +180,7 @@ const Layout: React.FC<LayoutProps> = ({
               onClick={() => navigate('/attribution')}
               size="small"
               title="Licenses & Attribution"
+              aria-label="Open attribution and licenses"
             >
               <LicenseIcon />
             </IconButton>

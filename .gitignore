@@ -29,3 +29,5 @@ coverage
 # WASM files (will be added later)
 public/wasm-files/*.wasm
 public/tesseract-data/*.traineddata
+
+.lighthouseci
