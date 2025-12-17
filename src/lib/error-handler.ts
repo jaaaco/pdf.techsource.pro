@@ -367,7 +367,7 @@ export class ErrorHandler {
    * Log error for debugging (in development)
    */
   static logError(processedError: ProcessedError): void {
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.MODE === 'development') {
       console.group(`🚨 ${processedError.type} (${processedError.severity})`);
       console.error('Original Error:', processedError.originalError);
       console.log('Context:', processedError.context);

@@ -143,7 +143,7 @@ const useGlobalErrorHandler = () => {
       console.error('Unhandled promise rejection:', event.reason)
       
       // Log error for debugging
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.MODE === 'development') {
         console.group('🚨 Unhandled Promise Rejection')
         console.error('Reason:', event.reason)
         console.error('Promise:', event.promise)
@@ -158,7 +158,7 @@ const useGlobalErrorHandler = () => {
       console.error('Global error:', event.error)
       
       // Log error for debugging
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.MODE === 'development') {
         console.group('🚨 Global Error')
         console.error('Message:', event.message)
         console.error('Filename:', event.filename)
