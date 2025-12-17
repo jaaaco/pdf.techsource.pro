@@ -230,9 +230,9 @@ export class PDFValidator {
 
     for (const check of corruptionChecks) {
       if (check.test()) {
-        if ('error' in check) {
+        if ('error' in check && check.error) {
           result.errors.push(check.error);
-        } else if ('warning' in check) {
+        } else if ('warning' in check && check.warning) {
           result.warnings.push(check.warning);
         }
       }

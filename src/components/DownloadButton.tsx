@@ -20,7 +20,8 @@ import {
   Stack,
   CircularProgress,
   Divider,
-  Chip
+  Chip,
+  Paper
 } from '@mui/material';
 import {
   Download as DownloadIcon,
@@ -57,13 +58,6 @@ const DownloadButton: React.FC<DownloadButtonProps> = ({
 }) => {
   const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState(false);
-
-  // Auto-download effect
-  React.useEffect(() => {
-    if (autoDownload && files.length > 0 && !disabled) {
-      handleDownloadAll();
-    }
-  }, [autoDownload, files, disabled]);
 
   /**
    * Download a single file
@@ -108,6 +102,13 @@ const DownloadButton: React.FC<DownloadButtonProps> = ({
       );
     }
   }, [files, downloadFile, onDownloadError]);
+
+  // Auto-download effect
+  React.useEffect(() => {
+    if (autoDownload && files.length > 0 && !disabled) {
+      handleDownloadAll();
+    }
+  }, [autoDownload, files, disabled, handleDownloadAll]);
 
   if (files.length === 0) {
     return null;

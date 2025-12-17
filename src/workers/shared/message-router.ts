@@ -3,7 +3,7 @@
  * Validates: Requirements 2.3, 7.3
  */
 
-import { ToolWorkerMessage, MessageValidator, ErrorInfo } from './progress-protocol';
+import { ToolWorkerMessage, MessageValidator } from './progress-protocol';
 
 export type MessageHandler = (message: ToolWorkerMessage) => void;
 

@@ -204,7 +204,7 @@ export class FileUtils {
    * Create File from Uint8Array
    */
   static uint8ArrayToFile(data: Uint8Array, filename: string, mimeType: string = 'application/pdf'): File {
-    const blob = new Blob([data], { type: mimeType });
+    const blob = new Blob([data as BlobPart], { type: mimeType });
     return new File([blob], filename, { type: mimeType });
   }
 
@@ -212,7 +212,7 @@ export class FileUtils {
    * Create download URL for file data
    */
   static createDownloadURL(data: Uint8Array, mimeType: string = 'application/pdf'): string {
-    const blob = new Blob([data], { type: mimeType });
+    const blob = new Blob([data as BlobPart], { type: mimeType });
     return URL.createObjectURL(blob);
   }
 

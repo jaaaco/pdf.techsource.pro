@@ -4,7 +4,7 @@
  * Validates: Requirements 2.1, 2.2
  */
 
-import { MessageFactory, ProgressCalculator } from './progress-protocol';
+import { MessageFactory } from './progress-protocol';
 
 export interface ProgressStage {
   name: string;

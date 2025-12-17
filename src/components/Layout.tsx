@@ -22,6 +22,7 @@ import {
   GitHub as GitHubIcon,
   Description as LicenseIcon,
   ArrowBack as BackIcon,
+  Coffee as CoffeeIcon,
 } from '@mui/icons-material';
 
 interface LayoutProps {
@@ -144,18 +145,38 @@ const Layout: React.FC<LayoutProps> = ({
           </Box>
           
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton 
-              color="inherit" 
-              href="https://github.com/your-repo/pdf-toolkit" 
-              target="_blank"
-              size="small"
-            >
-              <GitHubIcon />
-            </IconButton>
-            <IconButton 
-              color="inherit" 
+            {import.meta.env.VITE_BUY_ME_COFFEE_URL && (
+              <IconButton
+                color="inherit"
+                href={import.meta.env.VITE_BUY_ME_COFFEE_URL}
+                target="_blank"
+                size="small"
+                title="Buy me a coffee"
+                sx={{
+                  '&:hover': {
+                    color: '#FFDD00'
+                  }
+                }}
+              >
+                <CoffeeIcon />
+              </IconButton>
+            )}
+            {import.meta.env.VITE_GITHUB_URL && (
+              <IconButton
+                color="inherit"
+                href={import.meta.env.VITE_GITHUB_URL}
+                target="_blank"
+                size="small"
+                title="View on GitHub"
+              >
+                <GitHubIcon />
+              </IconButton>
+            )}
+            <IconButton
+              color="inherit"
               onClick={() => navigate('/attribution')}
               size="small"
+              title="Licenses & Attribution"
             >
               <LicenseIcon />
             </IconButton>

@@ -26,6 +26,7 @@
     "@mui/lab": "^5.0.0-alpha.157",
     "@mui/material": "^5.18.0",
     "@mui/x-data-grid": "^6.20.4",
+    "@sentry/react": "^10.31.0",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.4.449",
     "react": "^18.2.0",

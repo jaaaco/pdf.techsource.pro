@@ -205,12 +205,13 @@ self.onmessage = async (event) => {
         self.postMessage({ type: 'page_added', taskId });
         break;
 
-      case 'finish_assembly':
+      case 'finish_assembly': {
         const result = await worker.finishAssembly(payload.assemblyId, payload.originalFileName, payload.options);
         self.postMessage(MessageFactory.createCompleteMessage(
           taskId, [result], { tool: 'compress', processingTime: 0, options: payload.options, totalPages: 0 }
         ));
         break;
+      }
 
       case 'cancel':
         worker.cancel();
@@ -222,7 +223,7 @@ self.onmessage = async (event) => {
     }
   } catch (error) {
     self.postMessage(MessageFactory.createErrorMessage(
-      taskId, 'COMPRESSION_FAILED',
+      taskId, 'PROCESSING_ERROR',
       error instanceof Error ? error.message : String(error), [], false
     ));
   }

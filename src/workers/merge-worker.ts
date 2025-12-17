@@ -191,7 +191,7 @@ class MergeWorker {
     });
 
     // Add any remaining files that weren't in the order list
-    fileMap.forEach((file, fileName) => {
+    fileMap.forEach((file) => {
       orderedFiles.push({
         file,
         order: orderedFiles.length,

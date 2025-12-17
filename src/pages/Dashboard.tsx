@@ -133,9 +133,11 @@ const Dashboard: React.FC = () => {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
             PDF Toolkit
           </Typography>
-          <IconButton color="inherit" href="https://github.com/your-repo/pdf-toolkit" target="_blank">
-            <GitHubIcon />
-          </IconButton>
+          {import.meta.env.VITE_GITHUB_URL && (
+            <IconButton color="inherit" href={import.meta.env.VITE_GITHUB_URL} target="_blank">
+              <GitHubIcon />
+            </IconButton>
+          )}
           <IconButton color="inherit" component={Link} to="/attribution">
             <LicenseIcon />
           </IconButton>

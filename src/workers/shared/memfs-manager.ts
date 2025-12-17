@@ -288,7 +288,7 @@ export class MEMFSManager {
     
     try {
       // Clean up memory allocations
-      for (const [path, allocationId] of this.allocatedFiles) {
+      for (const [, allocationId] of this.allocatedFiles) {
         this.memoryManager.deallocate(allocationId);
       }
       this.allocatedFiles.clear();

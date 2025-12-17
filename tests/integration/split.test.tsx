@@ -22,7 +22,7 @@ const mockWorker = {
   removeEventListener: vi.fn(),
 };
 
-global.Worker = vi.fn(() => mockWorker) as any;
+global.Worker = vi.fn(() => mockWorker) as unknown as typeof Worker;
 
 describe('PDF Split Integration Tests', () => {
   beforeEach(() => {

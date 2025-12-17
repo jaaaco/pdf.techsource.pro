@@ -3,6 +3,8 @@
  * Validates: Requirements 2.4, 10.5
  */
 
+import * as Sentry from '@sentry/react'
+
 export interface ErrorContext {
   tool?: string;
   operation?: string;
@@ -45,7 +47,7 @@ export class ErrorHandler {
     };
 
     const errorType = this.categorizeError(error);
-    const recovery = this.getRecoveryStrategy(errorType, error, fullContext);
+    const recovery = this.getRecoveryStrategy(errorType);
     const severity = this.determineSeverity(errorType, error, fullContext);
 
     // Track error frequency
@@ -124,9 +126,7 @@ export class ErrorHandler {
    * Get recovery strategy based on error type
    */
   private static getRecoveryStrategy(
-    errorType: string, 
-    error: Error, 
-    context: ErrorContext
+    errorType: string
   ): ErrorRecoveryStrategy {
     switch (errorType) {
       case 'MEMORY_LIMIT':
@@ -255,8 +255,8 @@ export class ErrorHandler {
    * Determine error severity
    */
   private static determineSeverity(
-    errorType: string, 
-    error: Error, 
+    errorType: string,
+    _error: Error,
     context: ErrorContext
   ): 'low' | 'medium' | 'high' | 'critical' {
     // Critical errors that prevent any functionality
@@ -286,8 +286,8 @@ export class ErrorHandler {
    * Generate user-friendly error messages
    */
   private static generateUserFriendlyMessage(
-    errorType: string, 
-    error: Error, 
+    errorType: string,
+    _error: Error,
     context: ErrorContext
   ): string {
     const toolName = context.tool ? ` ${context.tool}` : '';
@@ -374,6 +374,36 @@ export class ErrorHandler {
       console.log('Recovery Strategy:', processedError.recovery);
       console.log('User Message:', processedError.message);
       console.groupEnd();
+    }
+
+    // Send error to Sentry if DSN is configured
+    if (import.meta.env.VITE_SENTRY_DSN) {
+      Sentry.captureException(processedError.originalError, {
+        level: processedError.severity === 'critical' || processedError.severity === 'high' ? 'error' : 'warning',
+        tags: {
+          errorType: processedError.type,
+          tool: processedError.context.tool || 'unknown',
+          operation: processedError.context.operation || 'unknown',
+        },
+        contexts: {
+          error: {
+            type: processedError.type,
+            severity: processedError.severity,
+            recoverable: processedError.recovery.canRecover,
+          },
+          context: {
+            fileName: processedError.context.fileName,
+            fileSize: processedError.context.fileSize,
+            memoryUsage: processedError.context.memoryUsage,
+            userAgent: processedError.context.userAgent,
+          },
+        },
+        extra: {
+          userMessage: processedError.message,
+          recoverySuggestions: processedError.recovery.suggestions,
+          autoRetry: processedError.recovery.autoRetry,
+        },
+      })
     }
   }
 

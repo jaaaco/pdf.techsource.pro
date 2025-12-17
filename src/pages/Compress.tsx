@@ -44,8 +44,8 @@ import DownloadButton from '@/components/DownloadButton';
 import { WorkerCommunicator, TaskIdGenerator } from '@/workers/shared/message-router';
 import { ProgressUpdate, ProcessedFile } from '@/workers/shared/progress-protocol';
 import { ErrorHandler } from '@/lib/error-handler';
+import { useDebugConsole } from '@/hooks/useDebugConsole';
 import * as pdfjsLib from 'pdfjs-dist';
-// @ts-expect-error - Vite handles this import
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 // Configure PDF.js worker
@@ -73,15 +73,7 @@ interface CompressionState {
 
 const Compress: React.FC = () => {
   const theme = useTheme();
-
-  const addLog = (message: string) => {
-    const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
-    setState(prev => ({
-      ...prev,
-      debugLogs: [...prev.debugLogs, `[${timestamp}] ${message}`]
-    }));
-  };
-
+  const [isDebugVisible] = useDebugConsole();
   const [state, setState] = useState<CompressionState>({
     files: [],
     options: {
@@ -95,6 +87,14 @@ const Compress: React.FC = () => {
     error: null,
     debugLogs: [],
   });
+
+  const addLog = useCallback((message: string) => {
+    const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
+    setState(prev => ({
+      ...prev,
+      debugLogs: [...prev.debugLogs, `[${timestamp}] ${message}`]
+    }));
+  }, []);
 
   // Worker communicator
   const [workerCommunicator] = useState(() => new WorkerCommunicator({
@@ -162,7 +162,7 @@ const Compress: React.FC = () => {
       addLog('Terminating worker instance (cleanup)...');
       workerCommunicator.terminateWorker();
     };
-  }, [workerCommunicator]);
+  }, [workerCommunicator, addLog]);
 
   const handleFilesSelected = useCallback((files: File[]) => {
     const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
@@ -212,7 +212,8 @@ const Compress: React.FC = () => {
           workerCommunicator.sendMessage({
             type: 'start_assembly',
             taskId,
-            payload: { assemblyId }
+            payload: { assemblyId },
+            timestamp: Date.now()
           });
 
           // 2. Load PDF
@@ -263,7 +264,7 @@ const Compress: React.FC = () => {
 
             if (!context) throw new Error('Canvas Context Failed');
 
-            await page.render({ canvasContext: context, viewport }).promise;
+            await page.render({ canvasContext: context, viewport, canvas }).promise;
 
             // Convert to blob/bytes
             const blob = await new Promise<Blob | null>(resolve =>
@@ -282,7 +283,8 @@ const Compress: React.FC = () => {
                 imageData: new Uint8Array(arrayBuf),
                 width: viewport.width / scale, // PDF units
                 height: viewport.height / scale
-              }
+              },
+              timestamp: Date.now()
             });
 
             // Allow UI to breathe
@@ -297,7 +299,8 @@ const Compress: React.FC = () => {
               assemblyId,
               originalFileName: file.name,
               options: state.options
-            }
+            },
+            timestamp: Date.now()
           });
         }
 
@@ -613,33 +616,35 @@ const Compress: React.FC = () => {
           </Card>
         )}
 
-        {/* Debug Console */}
-        <Card sx={{ mt: 4, bgcolor: '#0d1117', color: '#c9d1d9' }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ color: '#fff' }}>
-              Debug Console
-            </Typography>
-            <Box sx={{
-              maxHeight: 200,
-              overflowY: 'auto',
-              fontFamily: 'monospace',
-              fontSize: '0.8rem',
-              p: 1,
-              bgcolor: 'rgba(255,255,255,0.05)',
-              borderRadius: 1
-            }}>
-              {state.debugLogs.length === 0 ? (
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  No logs yet (start a task to see logs)
-                </Typography>
-              ) : (
-                state.debugLogs.map((log, i) => (
-                  <div key={i} style={{ marginBottom: 4 }}>{log}</div>
-                ))
-              )}
-            </Box>
-          </CardContent>
-        </Card>
+        {/* Debug Console (Toggle with Ctrl+Shift+D) */}
+        {isDebugVisible && (
+          <Card sx={{ mt: 4, bgcolor: '#0d1117', color: '#c9d1d9' }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom sx={{ color: '#fff' }}>
+                Debug Console <Chip label="Ctrl+Shift+D to toggle" size="small" sx={{ ml: 1 }} />
+              </Typography>
+              <Box sx={{
+                maxHeight: 200,
+                overflowY: 'auto',
+                fontFamily: 'monospace',
+                fontSize: '0.8rem',
+                p: 1,
+                bgcolor: 'rgba(255,255,255,0.05)',
+                borderRadius: 1
+              }}>
+                {state.debugLogs.length === 0 ? (
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    No logs yet (start a task to see logs)
+                  </Typography>
+                ) : (
+                  state.debugLogs.map((log, i) => (
+                    <div key={i} style={{ marginBottom: 4 }}>{log}</div>
+                  ))
+                )}
+              </Box>
+            </CardContent>
+          </Card>
+        )}
       </Box>
     </Layout>
   );

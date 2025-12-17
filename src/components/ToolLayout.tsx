@@ -209,30 +209,34 @@ const ToolLayout: React.FC<ToolLayoutProps> = ({
               >
                 Attribution & Licenses
               </Link>
-              <a 
-                href="https://github.com/your-repo/pdf-toolkit" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                style={{ 
-                  color: '#3b82f6', 
-                  textDecoration: 'none', 
-                  fontSize: '0.875rem' 
-                }}
-              >
-                Source Code
-              </a>
-              <a 
-                href="https://github.com/your-repo/pdf-toolkit/issues" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                style={{ 
-                  color: '#3b82f6', 
-                  textDecoration: 'none', 
-                  fontSize: '0.875rem' 
-                }}
-              >
-                Report Issues
-              </a>
+              {import.meta.env.VITE_GITHUB_URL && (
+                <>
+                  <a
+                    href={import.meta.env.VITE_GITHUB_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: '#3b82f6',
+                      textDecoration: 'none',
+                      fontSize: '0.875rem'
+                    }}
+                  >
+                    Source Code
+                  </a>
+                  <a
+                    href={`${import.meta.env.VITE_GITHUB_URL}/issues`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: '#3b82f6',
+                      textDecoration: 'none',
+                      fontSize: '0.875rem'
+                    }}
+                  >
+                    Report Issues
+                  </a>
+                </>
+              )}
             </div>
 
             <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>

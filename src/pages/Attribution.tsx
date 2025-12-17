@@ -212,7 +212,7 @@ const Attribution: React.FC = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             If you have questions about licensing or need clarification:
             <Link
-              href="https://github.com/your-repo/pdf-toolkit/issues"
+              href={`${import.meta.env.VITE_GITHUB_URL || 'https://github.com'}/issues`}
               target="_blank"
               rel="noopener"
               sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}

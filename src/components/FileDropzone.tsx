@@ -4,31 +4,6 @@
  */
 
 import React, { useCallback, useState, useRef } from 'react';
-import {
-  Box,
-  Typography,
-  Button,
-  Paper,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  ListItemSecondaryAction,
-  IconButton,
-  Chip,
-  Alert,
-  LinearProgress,
-  useTheme,
-  alpha,
-} from '@mui/material';
-import {
-  CloudUpload as UploadIcon,
-  Description as FileIcon,
-  Delete as DeleteIcon,
-  DragIndicator as DragIcon,
-  CheckCircle as CheckIcon,
-  Error as ErrorIcon,
-} from '@mui/icons-material';
 import { FileUtils } from '@/lib/file-utils';
 import { PDFValidator } from '@/lib/pdf-validator';
 

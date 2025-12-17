@@ -162,9 +162,9 @@ export class WASMLoader {
 
         // Handle initialization errors
         const originalOnAbort = moduleConfig.onAbort;
-        moduleConfig.onAbort = (what: any) => {
+        moduleConfig.onAbort = (what: any): never => {
           clearTimeout(timeoutId);
-          originalOnAbort(what);
+          return originalOnAbort(what);
         };
       });
 
@@ -266,7 +266,7 @@ export class WASMLoader {
    * Unload all modules
    */
   static unloadAllModules(): void {
-    for (const [name, instance] of this.loadedModules) {
+    for (const [, instance] of this.loadedModules) {
       instance.cleanup();
     }
     this.loadedModules.clear();

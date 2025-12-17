@@ -13,7 +13,6 @@ import { FileUtils } from '../lib/file-utils';
 
 // Configure PDF.js worker
 // We use a local path handled by Vite to ensure offline functionality and privacy
-// @ts-expect-error - Vite handles this import
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 

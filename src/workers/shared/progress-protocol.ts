@@ -48,7 +48,7 @@ export interface InitConfig {
 }
 
 export interface ToolWorkerMessage {
-  type: 'progress' | 'complete' | 'error' | 'init' | 'cancel' | 'compress' | 'merge' | 'split' | 'ocr' | 'getPDFInfo' | 'validateRanges';
+  type: 'progress' | 'complete' | 'error' | 'init' | 'cancel' | 'compress' | 'merge' | 'split' | 'ocr' | 'getPDFInfo' | 'validateRanges' | 'start_assembly' | 'add_page_image' | 'finish_assembly';
   payload: ProgressUpdate | ProcessingResult | ErrorInfo | InitConfig | any | null;
   taskId: string;
   timestamp: number;

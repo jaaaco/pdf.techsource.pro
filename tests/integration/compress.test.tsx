@@ -23,7 +23,7 @@ const mockWorker = {
 };
 
 // Mock Worker constructor
-global.Worker = vi.fn(() => mockWorker) as any;
+global.Worker = vi.fn(() => mockWorker) as unknown as typeof Worker;
 
 describe('PDF Compression Integration Tests', () => {
   beforeEach(() => {

@@ -47,6 +47,7 @@ import DownloadButton from '@/components/DownloadButton';
 import { WorkerCommunicator, TaskIdGenerator } from '@/workers/shared/message-router';
 import { ProgressUpdate, ProcessedFile } from '@/workers/shared/progress-protocol';
 import { ErrorHandler } from '@/lib/error-handler';
+import { useDebugConsole } from '@/hooks/useDebugConsole';
 
 interface OCROptions {
   languages: string[];
@@ -70,6 +71,7 @@ interface OCRState {
 
 const OCR: React.FC = () => {
   const theme = useTheme();
+  const [isDebugVisible] = useDebugConsole();
 
   const addLog = (message: string) => {
     const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
@@ -628,33 +630,35 @@ const OCR: React.FC = () => {
           </Card>
         )}
 
-        {/* Debug Console */}
-        <Card sx={{ mt: 4, bgcolor: '#0d1117', color: '#c9d1d9' }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ color: '#fff' }}>
-              Debug Console
-            </Typography>
-            <Box sx={{
-              maxHeight: 200,
-              overflowY: 'auto',
-              fontFamily: 'monospace',
-              fontSize: '0.8rem',
-              p: 1,
-              bgcolor: 'rgba(255,255,255,0.05)',
-              borderRadius: 1
-            }}>
-              {state.debugLogs.length === 0 ? (
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  No logs yet (start a task to see logs)
-                </Typography>
-              ) : (
-                state.debugLogs.map((log, i) => (
-                  <div key={i} style={{ marginBottom: 4 }}>{log}</div>
-                ))
-              )}
-            </Box>
-          </CardContent>
-        </Card>
+        {/* Debug Console (Toggle with Ctrl+Shift+D) */}
+        {isDebugVisible && (
+          <Card sx={{ mt: 4, bgcolor: '#0d1117', color: '#c9d1d9' }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom sx={{ color: '#fff' }}>
+                Debug Console <Chip label="Ctrl+Shift+D to toggle" size="small" sx={{ ml: 1 }} />
+              </Typography>
+              <Box sx={{
+                maxHeight: 200,
+                overflowY: 'auto',
+                fontFamily: 'monospace',
+                fontSize: '0.8rem',
+                p: 1,
+                bgcolor: 'rgba(255,255,255,0.05)',
+                borderRadius: 1
+              }}>
+                {state.debugLogs.length === 0 ? (
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    No logs yet (start a task to see logs)
+                  </Typography>
+                ) : (
+                  state.debugLogs.map((log, i) => (
+                    <div key={i} style={{ marginBottom: 4 }}>{log}</div>
+                  ))
+                )}
+              </Box>
+            </CardContent>
+          </Card>
+        )}
       </Box>
     </Layout>
   );
