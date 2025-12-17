@@ -108,7 +108,9 @@ const Merge: React.FC = () => {
   useEffect(() => {
     const initWorker = async () => {
       try {
-        await workerCommunicator.initializeWorker(new URL('../workers/merge-worker.ts', import.meta.url));
+        await workerCommunicator.initializeWorker(() =>
+          new Worker(new URL('../workers/merge-worker.ts', import.meta.url), { type: 'module' })
+        );
       } catch (error) {
         console.error('Failed to initialize merge worker:', error);
         setState(prev => ({

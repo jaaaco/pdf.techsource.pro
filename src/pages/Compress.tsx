@@ -137,10 +137,11 @@ const Compress: React.FC = () => {
     const initWorker = async () => {
       if (isMounted) addLog('Initializing Compress worker...');
       try {
-        const workerUrl = new URL('../workers/compress-worker.ts', import.meta.url);
-        if (isMounted) addLog(`Worker URL: ${workerUrl.toString()}`);
-
-        await workerCommunicator.initializeWorker(workerUrl);
+        await workerCommunicator.initializeWorker(() => {
+          const worker = new Worker(new URL('../workers/compress-worker.ts', import.meta.url), { type: 'module' });
+          if (isMounted) addLog('Worker script resolved via Vite bundler');
+          return worker;
+        });
 
         if (isMounted) addLog('Worker initialized successfully');
       } catch (error) {

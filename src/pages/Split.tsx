@@ -115,7 +115,9 @@ const Split: React.FC = () => {
   useEffect(() => {
     const initWorker = async () => {
       try {
-        await workerCommunicator.initializeWorker(new URL('../workers/split-worker.ts', import.meta.url));
+        await workerCommunicator.initializeWorker(() =>
+          new Worker(new URL('../workers/split-worker.ts', import.meta.url), { type: 'module' })
+        );
       } catch (error) {
         console.error('Failed to initialize split worker:', error);
         setState(prev => ({

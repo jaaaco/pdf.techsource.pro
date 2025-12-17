@@ -107,15 +107,23 @@ export class WorkerCommunicator {
   }
 
   /**
-   * Initialize worker with the given script path
+   * Initialize worker with the given script factory or instance.
+   * Passing a factory ensures Vite sees the Worker constructor
+   * and bundles the referenced worker correctly.
    */
-  async initializeWorker(workerScript: string | URL): Promise<void> {
+  async initializeWorker(workerSource: string | URL | Worker | (() => Worker)): Promise<void> {
     if (this.worker) {
       this.terminateWorker();
     }
 
     try {
-      this.worker = new Worker(workerScript, { type: 'module' });
+      if (typeof workerSource === 'function') {
+        this.worker = workerSource();
+      } else if (workerSource instanceof Worker) {
+        this.worker = workerSource;
+      } else {
+        this.worker = new Worker(workerSource, { type: 'module' });
+      }
       this.worker.onmessage = (event) => {
         this.router.routeMessage(event.data);
       };
