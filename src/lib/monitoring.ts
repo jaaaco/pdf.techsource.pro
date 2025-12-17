@@ -3,9 +3,7 @@ type CaptureContext = Parameters<SentryModule['captureException']>[1]
 
 let sentryPromise: Promise<SentryModule> | null = null
 let monitoringInitialized = false
-const loadSentryModule = (): Promise<SentryModule> => {
-  return (0, eval)('import("@sentry/react")') as Promise<SentryModule>
-}
+const loadSentryModule = (): Promise<SentryModule> => import('@sentry/react')
 
 const ensureSentry = (): Promise<SentryModule> | null => {
   if (!import.meta.env.VITE_SENTRY_DSN) {
