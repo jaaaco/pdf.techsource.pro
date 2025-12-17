@@ -4,6 +4,10 @@ import App from './App.tsx'
 import './index.css'
 import { initGTM } from './lib/gtm'
 import { initMonitoring } from './lib/monitoring'
+import { initConsentMode } from './lib/consent'
+
+// Initialize Google Consent Mode before GTM loads
+initConsentMode()
 
 // Lazily initialize monitoring stack when enabled
 initMonitoring()

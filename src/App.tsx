@@ -8,6 +8,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import { theme } from '@/theme'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import ConsentBanner from '@/components/ConsentBanner'
 
 // Lazy load components for code splitting
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
@@ -186,6 +187,7 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <ErrorBoundary>
+        <ConsentBanner />
         <OfflineBanner isOnline={isOnline} />
         <Router>
         <Routes>
