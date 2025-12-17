@@ -40,6 +40,23 @@ const ensureDataLayer = () => {
   }
 }
 
+const pushInitEvent = () => {
+  if (typeof window === 'undefined' || !Array.isArray(window.dataLayer)) {
+    return
+  }
+
+  const alreadyDispatched = window.dataLayer.some((event) => {
+    return event?.event === 'gtm.init_consent'
+  })
+
+  if (!alreadyDispatched) {
+    window.dataLayer.push({
+      event: 'gtm.init_consent',
+      'gtm.uniqueEventId': 1
+    })
+  }
+}
+
 const readStoredConsent = (): ConsentValue | null => {
   if (typeof window === 'undefined') {
     return null
@@ -85,6 +102,7 @@ export const initConsentMode = () => {
   initialized = true
 
   ensureDataLayer()
+  pushInitEvent()
 
   window.gtag('consent', 'default', {
     ...DENIED_PAYLOAD,
