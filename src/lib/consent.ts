@@ -34,9 +34,9 @@ const ensureDataLayer = () => {
 
   window.dataLayer = window.dataLayer || []
   if (!window.gtag) {
-    window.gtag = (...args: any[]) => {
+    window.gtag = ((...args: unknown[]) => {
       window.dataLayer.push(args)
-    }
+    }) as GtagFunction
   }
 }
 
@@ -138,7 +138,7 @@ export const setConsentPreference = (value: ConsentValue) => {
  */
 export const subscribeToConsentChanges = (listener: (value: ConsentValue) => void) => {
   if (typeof window === 'undefined') {
-    return () => {}
+    return () => { }
   }
 
   const handler = (event: Event) => {
@@ -152,11 +152,16 @@ export const subscribeToConsentChanges = (listener: (value: ConsentValue) => voi
 
 export type { ConsentValue }
 
+type GtagFunction = (
+  command: 'config' | 'set' | 'js' | 'event' | 'consent' | 'get',
+  ...args: unknown[]
+) => void
+
 declare global {
   interface Window {
-    dataLayer: any[]
-    gtag: (...args: any[]) => void
+    dataLayer: unknown[]
+    gtag: GtagFunction
   }
 }
 
-export {}
+export { }
