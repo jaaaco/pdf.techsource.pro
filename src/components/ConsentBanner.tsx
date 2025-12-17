@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Box, Typography, Button, Paper, alpha, useTheme } from '@mui/material'
+import { Box, Typography, Button, Paper, alpha } from '@mui/material'
 import { getConsentPreference, setConsentPreference, type ConsentValue } from '@/lib/consent'
 
 const ConsentBanner: React.FC = () => {

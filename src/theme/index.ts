@@ -3,7 +3,7 @@
  * Modern 2026 design system with glassmorphism and bento-grid focus
  */
 
-import { createTheme, ThemeOptions, alpha } from '@mui/material/styles';
+import { createTheme, ThemeOptions } from '@mui/material/styles';
 
 // Custom color palette for a premium, modern look
 const palette = {
