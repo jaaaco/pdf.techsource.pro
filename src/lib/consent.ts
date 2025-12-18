@@ -45,8 +45,8 @@ const pushInitEvent = () => {
     return
   }
 
-  const alreadyDispatched = window.dataLayer.some((event) => {
-    return event?.event === 'gtm.init_consent'
+  const alreadyDispatched = (window.dataLayer as DataLayerItem[]).some((item) => {
+    return !Array.isArray(item) && (item as DataLayerEvent).event === 'gtm.init_consent'
   })
 
   if (!alreadyDispatched) {
@@ -152,6 +152,9 @@ export const subscribeToConsentChanges = (listener: (value: ConsentValue) => voi
 
 export type { ConsentValue }
 
+type DataLayerEvent = Record<string, unknown> & { event?: string }
+type DataLayerItem = DataLayerEvent | unknown[]
+
 type GtagFunction = (
   command: 'config' | 'set' | 'js' | 'event' | 'consent' | 'get',
   ...args: unknown[]
@@ -159,9 +162,7 @@ type GtagFunction = (
 
 declare global {
   interface Window {
-    dataLayer: unknown[]
+    dataLayer: DataLayerItem[]
     gtag: GtagFunction
   }
 }
-
-export { }

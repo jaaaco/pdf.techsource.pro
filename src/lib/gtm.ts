@@ -7,11 +7,6 @@ export interface GTMConfig {
   id: string
 }
 
-declare global {
-  interface Window {
-    dataLayer: unknown[]
-  }
-}
 
 /**
  * Initialize Google Tag Manager
