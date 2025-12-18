@@ -1,37 +1,6 @@
 import React, { useEffect, useState } from 'react'
+import { Box, Typography, Button, Paper, alpha } from '@mui/material'
 import { getConsentPreference, setConsentPreference, type ConsentValue } from '@/lib/consent'
-
-const bannerStyles: React.CSSProperties = {
-  position: 'fixed',
-  bottom: '1.5rem',
-  left: '50%',
-  transform: 'translateX(-50%)',
-  maxWidth: '500px',
-  width: '90%',
-  backgroundColor: '#111827',
-  color: 'white',
-  padding: '1.5rem',
-  borderRadius: '1rem',
-  boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)',
-  zIndex: 10000
-}
-
-const buttonBase: React.CSSProperties = {
-  flex: 1,
-  padding: '0.75rem 1rem',
-  borderRadius: '9999px',
-  border: 'none',
-  fontWeight: 600,
-  cursor: 'pointer',
-  fontSize: '0.95rem'
-}
-
-const descriptionStyles: React.CSSProperties = {
-  color: '#f3f4f6',
-  fontSize: '0.9rem',
-  lineHeight: 1.6,
-  margin: '0.5rem 0 1.5rem'
-}
 
 const ConsentBanner: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false)
@@ -50,30 +19,72 @@ const ConsentBanner: React.FC = () => {
   if (!isVisible) return null
 
   return (
-    <div style={bannerStyles} role="dialog" aria-live="polite" aria-label="Privacy preferences">
-      <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Privacy preferences</h2>
-      <p style={descriptionStyles}>
-        We use Google Analytics through Tag Manager to understand how the toolkit is used so we can improve it.
-        No personal files ever leave your browser. May we enable analytics cookies?
-      </p>
-      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <button
-          type="button"
-          style={{ ...buttonBase, backgroundColor: '#374151', color: 'white' }}
+    <Paper
+      elevation={20}
+      role="dialog"
+      aria-live="polite"
+      aria-label="Privacy preferences"
+      sx={{
+        position: 'fixed',
+        bottom: '2rem',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        maxWidth: '500px',
+        width: '90%',
+        backgroundColor: alpha('#111827', 0.9),
+        backdropFilter: 'blur(16px)',
+        color: 'white',
+        p: 3,
+        borderRadius: 5,
+        zIndex: 10000,
+        border: '1px solid rgba(255,255,255,0.1)',
+      }}
+    >
+      <Typography variant="h6" fontWeight={800} sx={{ mb: 1, letterSpacing: '-0.01em' }}>
+        Privacy Preference
+      </Typography>
+      <Typography
+        variant="body2"
+        sx={{
+          color: alpha('#fff', 0.7),
+          lineHeight: 1.6,
+          mb: 3,
+          fontWeight: 500
+        }}
+      >
+        We use anonymous telemetry to refine PDF.KIT. No documents ever leave your browser—processing is 100% local. Enable analytics to help us build better tools?
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 2 }}>
+        <Button
+          fullWidth
+          variant="text"
           onClick={() => handleChoice('denied')}
+          sx={{
+            color: 'white',
+            fontWeight: 700,
+            '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' }
+          }}
         >
           Decline
-        </button>
-        <button
-          type="button"
-          style={{ ...buttonBase, backgroundColor: '#22c55e', color: '#0f172a' }}
+        </Button>
+        <Button
+          fullWidth
+          variant="contained"
+          color="success"
           onClick={() => handleChoice('granted')}
+          sx={{
+            borderRadius: '12px',
+            fontWeight: 800,
+            textTransform: 'none',
+            boxShadow: '0 8px 16px rgba(34, 197, 94, 0.2)'
+          }}
         >
-          Allow analytics
-        </button>
-      </div>
-    </div>
+          Allow Analytics
+        </Button>
+      </Box>
+    </Paper>
   )
 }
 
 export default ConsentBanner
+

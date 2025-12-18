@@ -1,6 +1,6 @@
 /**
  * Dashboard - Main tool selection interface
- * Validates: Requirements 9.4
+ * Modern 2026 Bento Grid design
  */
 
 import React from 'react'
@@ -8,10 +8,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   Container,
   Typography,
-  Grid,
   Card,
   CardContent,
-  CardActions,
   Button,
   Box,
   Chip,
@@ -19,13 +17,9 @@ import {
   Toolbar,
   IconButton,
   Paper,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-
   useTheme,
   alpha,
+  Grid,
 } from '@mui/material'
 import {
   Compress as CompressIcon,
@@ -35,10 +29,12 @@ import {
   Security as SecurityIcon,
   Speed as SpeedIcon,
   CloudOff as OfflineIcon,
-  PhoneAndroid as MobileIcon,
-  Info as InfoIcon,
+  Devices as MobileIcon,
   GitHub as GitHubIcon,
   Description as LicenseIcon,
+  FolderZip as FolderZipIcon,
+  Memory as MemoryIcon,
+  PrivacyTip as PrivacyTipIcon
 } from '@mui/icons-material'
 
 interface ToolCardProps {
@@ -48,76 +44,94 @@ interface ToolCardProps {
   features: string[];
   icon: React.ReactNode;
   color: string;
+  large?: boolean;
 }
 
-const ToolCard: React.FC<ToolCardProps> = ({ to, title, description, features, icon, color }) => {
-  const theme = useTheme();
+const ToolCard: React.FC<ToolCardProps> = ({ to, title, description, features, icon, color, large }) => {
   const navigate = useNavigate();
 
   return (
-    <Card 
-      sx={{ 
+    <Card
+      className={large ? 'bento-item-large' : ''}
+      sx={{
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
         cursor: 'pointer',
-        transition: 'all 0.2s ease-in-out',
-        '&:hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: theme.shadows[8],
+        position: 'relative',
+        overflow: 'hidden',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '4px',
+          backgroundColor: color,
         }
       }}
       onClick={() => navigate(to)}
     >
-      <CardContent sx={{ flexGrow: 1, p: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <Box 
-            sx={{ 
-              p: 1.5, 
-              borderRadius: 2, 
+      <CardContent sx={{ flexGrow: 1, p: 4 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+          <Box
+            sx={{
+              p: 2,
+              borderRadius: 3,
               backgroundColor: alpha(color, 0.1),
               color: color,
-              mr: 2 
+              mr: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            {icon}
+            {React.cloneElement(icon as React.ReactElement, { fontSize: large ? 'large' : 'medium' })}
           </Box>
-          <Typography variant="h6" component="h3" fontWeight={600}>
+          <Typography variant={large ? "h4" : "h6"} component="h3" fontWeight={700}>
             {title}
           </Typography>
         </Box>
-        
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 4, flexGrow: 1 }}>
           {description}
         </Typography>
-        
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 'auto' }}>
           {features.map((feature, index) => (
             <Chip
               key={index}
               label={feature}
               size="small"
-              variant="outlined"
-              sx={{ fontSize: '0.75rem' }}
+              sx={{
+                fontWeight: 600,
+                backgroundColor: alpha(color, 0.05),
+                color: color,
+                border: `1px solid ${alpha(color, 0.2)}`,
+              }}
             />
           ))}
         </Box>
       </CardContent>
-      
-      <CardActions sx={{ p: 3, pt: 0 }}>
-        <Button 
-          variant="contained" 
-          fullWidth 
-          sx={{ 
-            backgroundColor: color,
+
+      <Box sx={{ p: 4, pt: 0 }}>
+        <Button
+          variant="text"
+          fullWidth
+          sx={{
+            color: color,
+            justifyContent: 'flex-start',
+            px: 0,
+            fontWeight: 700,
             '&:hover': {
-              backgroundColor: alpha(color, 0.8),
+              backgroundColor: 'transparent',
+              textDecoration: 'underline',
             }
           }}
         >
-          Open Tool
+          Open Tool →
         </Button>
-      </CardActions>
+      </Box>
     </Card>
   );
 };
@@ -126,304 +140,220 @@ const Dashboard: React.FC = () => {
   const theme = useTheme();
 
   return (
-    <Box sx={{ minHeight: '100vh', backgroundColor: 'background.default' }}>
+    <Box sx={{ minHeight: '100vh', pb: 10 }}>
       {/* App Bar */}
-      <AppBar position="static" elevation={0} sx={{ backgroundColor: 'background.paper', color: 'text.primary' }}>
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
-            PDF Toolkit
+      <AppBar position="sticky" elevation={0}>
+        <Toolbar sx={{ justifyContent: 'space-between' }}>
+          <Typography variant="h6" component="div" sx={{ fontWeight: 800, letterSpacing: '-0.02em', color: 'primary.main' }}>
+            PDF.KIT
           </Typography>
-          {import.meta.env.VITE_GITHUB_URL && (
-            <IconButton 
-              color="inherit" 
-              href={import.meta.env.VITE_GITHUB_URL} 
-              target="_blank"
-              aria-label="View the project on GitHub"
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {import.meta.env.VITE_GITHUB_URL && (
+              <IconButton
+                color="inherit"
+                href={import.meta.env.VITE_GITHUB_URL}
+                target="_blank"
+                size="small"
+              >
+                <GitHubIcon fontSize="small" />
+              </IconButton>
+            )}
+            <IconButton
+              color="inherit"
+              component={Link}
+              to="/attribution"
+              size="small"
             >
-              <GitHubIcon />
+              <LicenseIcon fontSize="small" />
             </IconButton>
-          )}
-          <IconButton 
-            color="inherit" 
-            component={Link} 
-            to="/attribution"
-            aria-label="Open attribution and licenses"
-          >
-            <LicenseIcon />
-          </IconButton>
+          </Box>
         </Toolbar>
       </AppBar>
 
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Container maxWidth="lg" sx={{ pt: 12, pb: 8 }}>
         {/* Hero Section */}
-        <Box sx={{ textAlign: 'center', mb: 6 }}>
-          <Typography 
-            variant="h2" 
-            component="h1" 
-            gutterBottom
-            sx={{ 
-              fontWeight: 700,
-              background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              mb: 2
-            }}
+        <Box sx={{ textAlign: 'center', mb: 12 }}>
+          <Typography
+            variant="h1"
+            component="h1"
+            className="gradient-text float-anim"
+            sx={{ mb: 3 }}
           >
-            Professional PDF Toolkit
+            PDF Magic, Locally.
           </Typography>
-          
-          <Typography 
-            variant="h5" 
-            component="p"
-            color="text.secondary" 
-            sx={{ mb: 4, maxWidth: 600, mx: 'auto' }}
+
+          <Typography
+            variant="h5"
+            color="text.secondary"
+            sx={{ mb: 6, maxWidth: 700, mx: 'auto', fontWeight: 500 }}
           >
-            Privacy-first PDF processing tools that run entirely in your browser
+            Privacy-first PDF engineering. No uploads, no servers, just pure browser-side performance.
           </Typography>
-          
-          <Box sx={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 1 }}>
+
+          <Box sx={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 2 }}>
             {[
-              { label: '100% Private', Icon: SecurityIcon, color: theme.palette.success.main },
-              { label: 'No Upload Required', Icon: SpeedIcon, color: theme.palette.primary.main },
-              { label: 'Works Offline', Icon: OfflineIcon, color: theme.palette.info.main },
-              { label: 'Mobile Friendly', Icon: MobileIcon, color: theme.palette.secondary.main },
+              { label: 'Secure', Icon: SecurityIcon, color: theme.palette.success.main },
+              { label: 'Fast', Icon: SpeedIcon, color: theme.palette.primary.main },
+              { label: 'Offline', Icon: OfflineIcon, color: theme.palette.info.main },
+              { label: 'Mobile', Icon: MobileIcon, color: theme.palette.secondary.main },
             ].map(({ label, Icon, color }) => (
               <Chip
                 key={label}
-                icon={<Icon fontSize="small" sx={{ color }} aria-hidden="true" />}
+                icon={<Icon sx={{ color: `${color} !important`, fontSize: '18px' }} />}
                 label={label}
                 sx={{
-                  fontWeight: 600,
-                  backgroundColor: alpha(color, 0.15),
-                  color,
-                  '& .MuiChip-icon': {
-                    color,
-                  },
+                  py: 2.5,
+                  px: 1,
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  backgroundColor: alpha(color, 0.08),
+                  color: color,
+                  border: `1px solid ${alpha(color, 0.2)}`,
                 }}
               />
             ))}
           </Box>
         </Box>
 
-        {/* Tools Grid */}
-        <Grid container spacing={3} sx={{ mb: 6 }}>
-          <Grid item xs={12} sm={6} lg={3}>
-            <ToolCard
-              to="/compress"
-              title="Compress PDF"
-              description="Reduce PDF file size with intelligent compression while maintaining quality"
-              features={["Quality presets", "Large files", "Real-time progress"]}
-              icon={<CompressIcon fontSize="large" />}
-              color={theme.palette.primary.main}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} lg={3}>
-            <ToolCard
-              to="/merge"
-              title="Merge PDFs"
-              description="Combine multiple PDF files into a single document with drag-and-drop ordering"
-              features={["Drag & drop", "Preserve dimensions", "Unlimited files"]}
-              icon={<MergeIcon fontSize="large" />}
-              color={theme.palette.success.main}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} lg={3}>
-            <ToolCard
-              to="/split"
-              title="Split PDF"
-              description="Extract specific pages or ranges from PDF documents with flexible options"
-              features={["Page ranges", "Flexible syntax", "Multiple outputs"]}
-              icon={<SplitIcon fontSize="large" />}
-              color={theme.palette.warning.main}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} lg={3}>
-            <ToolCard
-              to="/ocr"
-              title="OCR PDF"
-              description="Convert scanned documents to searchable PDFs with optical character recognition"
-              features={["Multi-language", "Searchable text", "High accuracy"]}
-              icon={<OCRIcon fontSize="large" />}
-              color={theme.palette.secondary.main}
-            />
-          </Grid>
-        </Grid>
+        {/* Bento Grid Tools */}
+        <Box className="bento-grid" sx={{ mb: 12 }}>
+          <ToolCard
+            to="/compress"
+            title="Compress"
+            description="Shrink your documents without losing a pixel of quality. Intelligent optimization at its finest."
+            features={["Quality presets", "WebAssembly", "Fast"]}
+            icon={<CompressIcon />}
+            color={theme.palette.primary.main}
+            large
+          />
 
-        {/* How It Works Section */}
-        <Paper sx={{ p: 4, mb: 4 }}>
-          <Typography variant="h4" component="h2" gutterBottom sx={{ textAlign: 'center', mb: 4 }}>
-            How It Works
+          <ToolCard
+            to="/merge"
+            title="Merge"
+            description="Drag. Drop. Done. The simplest way to unite multiple PDFs into one."
+            features={["Reorder", "Fast", "Private"]}
+            icon={<MergeIcon />}
+            color={theme.palette.success.main}
+          />
+
+          <ToolCard
+            to="/split"
+            title="Split"
+            description="Extract precisely what you need. Any range, any page, in seconds."
+            features={["Ranges", "Preview", "Simple"]}
+            icon={<SplitIcon />}
+            color={theme.palette.warning.main}
+          />
+
+          <ToolCard
+            to="/ocr"
+            title="OCR"
+            description="Turn static scans into interactive text. Multi-language support included."
+            features={["Searchable", "99% Accuracy", "Tesseract"]}
+            icon={<OCRIcon />}
+            color={theme.palette.secondary.main}
+          />
+        </Box>
+
+        {/* Feature Showcase Section */}
+        <Box sx={{ mb: 16 }}>
+          <Typography
+            variant="h2"
+            textAlign="center"
+            className="gradient-text"
+            sx={{ mb: 10, fontWeight: 900, fontSize: { xs: '2.5rem', md: '3.5rem' } }}
+          >
+            Modern PDF Stack
           </Typography>
-          
+
           <Grid container spacing={4}>
-            <Grid item xs={12} md={4}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Box 
-                  sx={{ 
-                    width: 80, 
-                    height: 80, 
-                    borderRadius: '50%', 
-                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    mx: 'auto',
-                    mb: 2
+            {[
+              {
+                icon: <FolderZipIcon sx={{ fontSize: 40 }} />,
+                title: 'Native File Access',
+                desc: 'Pick your files directly. No middlemen, no uploads, just pure local speed.',
+                color: theme.palette.primary.main
+              },
+              {
+                icon: <MemoryIcon sx={{ fontSize: 40 }} />,
+                title: 'Client-Side Power',
+                desc: 'Processing happens in your RAM via WebAssembly. Desktop-grade performance.',
+                color: theme.palette.success.main
+              },
+              {
+                icon: <PrivacyTipIcon sx={{ fontSize: 40 }} />,
+                title: 'Zero Data Leaks',
+                desc: 'Your documents never leave your browser sandbox. Privacy by design.',
+                color: theme.palette.secondary.main
+              },
+            ].map((item, i) => (
+              <Grid item xs={12} md={4} key={i}>
+                <Paper
+                  elevation={0}
+                  className="glass"
+                  sx={{
+                    p: 6,
+                    height: '100%',
+                    textAlign: 'center',
+                    background: alpha(item.color, 0.03),
+                    borderColor: alpha(item.color, 0.1),
+                    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&:hover': {
+                      transform: 'translateY(-8px)',
+                      background: alpha(item.color, 0.06),
+                      boxShadow: `0 30px 60px -12px ${alpha(item.color, 0.15)}`,
+                      '& .feature-icon': {
+                        transform: 'scale(1.1)',
+                      }
+                    }
                   }}
                 >
-                  <Typography 
-                    variant="h4" 
-                    component="span" 
-                    aria-hidden="true"
+                  <Box
+                    className="feature-icon float-anim"
+                    sx={{
+                      mb: 4,
+                      color: item.color,
+                      display: 'inline-flex',
+                      p: 2,
+                      borderRadius: 4,
+                      background: alpha(item.color, 0.1),
+                      transition: 'transform 0.4s ease'
+                    }}
                   >
-                    📁
+                    {item.icon}
+                  </Box>
+                  <Typography variant="h5" fontWeight={800} gutterBottom sx={{ mb: 2 }}>
+                    {item.title}
                   </Typography>
-                </Box>
-                <Typography variant="h6" component="h3" gutterBottom>1. Select Files</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Drag and drop or click to select your PDF files
-                </Typography>
-              </Box>
-            </Grid>
-            
-            <Grid item xs={12} md={4}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Box 
-                  sx={{ 
-                    width: 80, 
-                    height: 80, 
-                    borderRadius: '50%', 
-                    backgroundColor: alpha(theme.palette.success.main, 0.1),
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    mx: 'auto',
-                    mb: 2
-                  }}
-                >
-                  <Typography 
-                    variant="h4" 
-                    component="span" 
-                    aria-hidden="true"
-                  >
-                    ⚙️
+                  <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7, opacity: 0.8 }}>
+                    {item.desc}
                   </Typography>
-                </Box>
-                <Typography variant="h6" component="h3" gutterBottom>2. Process Locally</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  All processing happens in your browser - no uploads
-                </Typography>
-              </Box>
-            </Grid>
-            
-            <Grid item xs={12} md={4}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Box 
-                  sx={{ 
-                    width: 80, 
-                    height: 80, 
-                    borderRadius: '50%', 
-                    backgroundColor: alpha(theme.palette.secondary.main, 0.1),
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    mx: 'auto',
-                    mb: 2
-                  }}
-                >
-                  <Typography 
-                    variant="h4" 
-                    component="span" 
-                    aria-hidden="true"
-                  >
-                    💾
-                  </Typography>
-                </Box>
-                <Typography variant="h6" component="h3" gutterBottom>3. Download Results</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Get your processed files instantly
-                </Typography>
-              </Box>
-            </Grid>
+                </Paper>
+              </Grid>
+            ))}
           </Grid>
-        </Paper>
+        </Box>
 
-        {/* Features List */}
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>
-            Why Choose PDF Toolkit?
+        {/* Footer/Value Props */}
+        <Card sx={{ p: 6, textAlign: 'center', background: alpha(theme.palette.primary.main, 0.03) }}>
+          <Typography variant="h4" fontWeight={900} gutterBottom className="gradient-text">
+            Why settle for cloud conversion?
           </Typography>
-          
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <List>
-                <ListItem>
-                  <ListItemIcon>
-                    <SecurityIcon color="success" />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary="Complete Privacy" 
-                    secondary="No data ever leaves your device"
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemIcon>
-                    <SpeedIcon color="primary" />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary="Lightning Fast" 
-                    secondary="WebAssembly-powered processing"
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemIcon>
-                    <OfflineIcon color="info" />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary="Works Offline" 
-                    secondary="No internet connection required"
-                  />
-                </ListItem>
-              </List>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <List>
-                <ListItem>
-                  <ListItemIcon>
-                    <MobileIcon color="secondary" />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary="Mobile Friendly" 
-                    secondary="Responsive design for all devices"
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemIcon>
-                    <InfoIcon color="warning" />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary="Open Source" 
-                    secondary="Transparent and community-driven"
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemIcon>
-                    <GitHubIcon />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary="Professional Grade" 
-                    secondary="Enterprise-quality PDF processing"
-                  />
-                </ListItem>
-              </List>
-            </Grid>
-          </Grid>
-        </Paper>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 600, mx: 'auto' }}>
+            Experience the next generation of PDF tools. Faster, safer, and entirely yours.
+          </Typography>
+          <Button
+            variant="contained"
+            size="large"
+            component={Link}
+            to="/compress"
+            sx={{ borderRadius: 4, py: 2, px: 6 }}
+          >
+            Start Processing
+          </Button>
+        </Card>
       </Container>
     </Box>
   )

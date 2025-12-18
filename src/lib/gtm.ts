@@ -7,11 +7,6 @@ export interface GTMConfig {
   id: string
 }
 
-declare global {
-  interface Window {
-    dataLayer: any[]
-  }
-}
 
 /**
  * Initialize Google Tag Manager
@@ -43,7 +38,7 @@ export const initGTM = (config: GTMConfig): void => {
 /**
  * Push custom event to GTM dataLayer
  */
-export const gtmEvent = (event: string, data?: Record<string, any>): void => {
+export const gtmEvent = (event: string, data?: Record<string, unknown>): void => {
   if (typeof window === 'undefined' || !window.dataLayer) {
     return
   }
