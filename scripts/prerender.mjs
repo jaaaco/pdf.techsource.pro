@@ -259,15 +259,27 @@ const buildBody = (page) => {
 
 /* ------------------------------------------------------------------- write */
 
+/**
+ * `/compress` is written as `dist/compress.html`, not `dist/compress/index.html`.
+ *
+ * Both are served by Netlify, but the directory form makes it 301 `/compress`
+ * to `/compress/` - and the canonical tag on that page points back at
+ * `/compress`. Search engines see a URL that redirects to a page claiming the
+ * redirecting URL as canonical, which is a self-inflicted crawl problem. The
+ * flat form serves `/compress` directly, so the served URL and the canonical
+ * are the same string.
+ */
+const outputPathFor = (path) => (path === '/' ? join(DIST, 'index.html') : join(DIST, `${path}.html`))
+
 const writePage = async (page) => {
   const html = template
     .replace(/<html\s+lang="[^"]*"/i, `<html lang="${page.locale}"`)
     .replace('</head>', `  ${buildHead(page)}\n  </head>`)
     .replace('<div id="root"></div>', `<div id="root">${buildBody(page)}</div>`)
 
-  const outDir = page.path === '/' ? DIST : join(DIST, page.path)
-  await mkdir(outDir, { recursive: true })
-  await writeFile(join(outDir, 'index.html'), html, 'utf8')
+  const outFile = outputPathFor(page.path)
+  await mkdir(dirname(outFile), { recursive: true })
+  await writeFile(outFile, html, 'utf8')
 }
 
 await Promise.all(pages.map(writePage))
