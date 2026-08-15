@@ -17,7 +17,6 @@ import {
   Grid,
   Alert,
   Chip,
-  Paper,
   List,
   ListItem,
   ListItemIcon,
@@ -42,6 +41,11 @@ import {
   HighQuality as QualityIcon,
 } from '@mui/icons-material';
 import Layout from '@/components/Layout';
+import ToolHero from '@/components/ToolHero';
+import SeoSection from '@/components/SeoSection';
+import Footer from '@/components/Footer';
+import { getRoute } from '@/seo/manifest';
+import useDocumentMeta from '@/seo/useDocumentMeta';
 import ProgressBar from '@/components/ProgressBar';
 import DownloadButton from '@/components/DownloadButton';
 import { WorkerCommunicator, TaskIdGenerator } from '@/workers/shared/message-router';
@@ -71,6 +75,13 @@ interface OCRState {
 
 const OCR: React.FC = () => {
   const theme = useTheme();
+  const route = getRoute('/ocr')!;
+  useDocumentMeta({
+    title: route.title,
+    description: route.description,
+    path: route.path,
+    locale: route.locale,
+  });
   const [isDebugVisible] = useDebugConsole();
 
   const addLog = (message: string) => {
@@ -312,6 +323,7 @@ const OCR: React.FC = () => {
   };
 
   return (
+    <>
     <Layout title="OCR PDF" showBackButton>
       <Box sx={{ maxWidth: 800, mx: 'auto' }}>
         {/* ... Header, Error Display, File Upload, OCR Options, Progress, Results ... */}
@@ -321,15 +333,7 @@ const OCR: React.FC = () => {
         */}
 
         {/* Header */}
-        <Paper sx={{ p: 3, mb: 3, textAlign: 'center' }}>
-          <OCRIcon sx={{ fontSize: 48, color: 'secondary.main', mb: 2 }} />
-          <Typography variant="h4" gutterBottom>
-            OCR PDF Processing
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Convert scanned documents to searchable PDFs with optical character recognition
-          </Typography>
-        </Paper>
+        <ToolHero route={route} icon={<OCRIcon sx={{ fontSize: 48, color: 'secondary.main', mb: 2 }} />} />
 
         {/* Error Display */}
         {state.error && (
@@ -660,8 +664,11 @@ const OCR: React.FC = () => {
             </CardContent>
           </Card>
         )}
+        <SeoSection route={route} />
       </Box>
     </Layout>
+    <Footer />
+    </>
   );
 };
 

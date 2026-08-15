@@ -64,9 +64,11 @@ const ToolLayout: React.FC<ToolLayoutProps> = ({
               }}
             >
               <div style={{ fontSize: '1.5rem' }}>📄</div>
-              <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>
+              {/* Deliberately not an <h1>: the page heading below is the h1,
+                  and two of them on one page is a ranking signal thrown away. */}
+              <span style={{ margin: 0, fontSize: '1.25rem', fontWeight: 'bold' }}>
                 PDF Toolkit
-              </h1>
+              </span>
             </Link>
             
             {toolName && (
@@ -199,16 +201,24 @@ const ToolLayout: React.FC<ToolLayoutProps> = ({
               flexWrap: 'wrap',
               marginBottom: '1rem'
             }}>
-              <Link 
-                to="/attribution" 
-                style={{ 
-                  color: '#3b82f6', 
-                  textDecoration: 'none', 
-                  fontSize: '0.875rem' 
-                }}
-              >
-                Attribution & Licenses
-              </Link>
+              {[
+                { to: '/blog', label: 'Guides' },
+                { to: '/privacy', label: 'Privacy' },
+                { to: '/contact', label: 'Contact' },
+                { to: '/attribution', label: 'Attribution & Licenses' },
+              ].map((link) => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  style={{
+                    color: '#3b82f6',
+                    textDecoration: 'none',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  {link.label}
+                </Link>
+              ))}
               {import.meta.env.VITE_GITHUB_URL && (
                 <>
                   <a
@@ -240,8 +250,12 @@ const ToolLayout: React.FC<ToolLayoutProps> = ({
             </div>
 
             <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
+              {/* The old line here claimed "no tracking, no data collection",
+                  which stopped being true the moment opt-in analytics shipped.
+                  The claim that matters and is still exactly true is the one
+                  about the files. */}
               <p style={{ margin: 0 }}>
-                Built with ❤️ using WebAssembly • No servers, no tracking, no data collection
+                Built with WebAssembly • Your files are processed in this tab and are never uploaded
               </p>
             </div>
           </div>

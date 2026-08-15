@@ -1,0 +1,12 @@
+{
+  "origin": "https://pdf.techsource.pro",
+  "name": "PDF Toolkit",
+  "defaultLocale": "en",
+  "locales": ["en", "pl"],
+  "repository": "https://github.com/jaaaco/pdf.techsource.pro",
+  "publisher": {
+    "name": "TechSource",
+    "url": "https://techsource.pro"
+  },
+  "contactEmail": null
+}

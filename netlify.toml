@@ -4,62 +4,74 @@
 [build]
   # Build command
   command = "npm run build"
-  
+
   # Output directory
   publish = "dist"
-  
+
   # Environment variables
   [build.environment]
-    NODE_VERSION = "18"
-    NPM_VERSION = "9"
+    NODE_VERSION = "20"
+    NPM_VERSION = "10"
 
-# Headers for WASM and SharedArrayBuffer support
+# Baseline headers.
+#
+# Note on COEP: `Cross-Origin-Embedder-Policy: require-corp` used to be set
+# here. It gates SharedArrayBuffer, which nothing in this codebase actually
+# uses (src/workers/shared/wasm-loader.ts only feature-detects it and never
+# branches on the result), and it blocks every cross-origin frame that does
+# not send CORP - which includes ad and analytics iframes. It is deliberately
+# not set. If a future feature needs threaded WASM, reintroduce it as
+# `credentialless` and re-test third-party embeds.
 [[headers]]
   for = "/*"
   [headers.values]
-    # Security headers
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
-    X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    
-    # WASM and Worker support
-    Cross-Origin-Embedder-Policy = "require-corp"
     Cross-Origin-Opener-Policy = "same-origin"
-    
-    # Cache control for static assets
-    Cache-Control = "public, max-age=31536000, immutable"
 
-# Specific headers for WASM files
+# Fingerprinted build output can be cached forever.
 [[headers]]
-  for = "/wasm/*"
+  for = "/assets/*"
   [headers.values]
-    Content-Type = "application/wasm"
-    Cross-Origin-Embedder-Policy = "require-corp"
-    Cross-Origin-Opener-Policy = "same-origin"
     Cache-Control = "public, max-age=31536000, immutable"
 
-# Headers for JavaScript workers
 [[headers]]
-  for = "/assets/*worker*.js"
+  for = "/images/*"
   [headers.values]
-    Cross-Origin-Embedder-Policy = "require-corp"
-    Cross-Origin-Opener-Policy = "same-origin"
     Cache-Control = "public, max-age=31536000, immutable"
 
-# HTML files - no cache for main pages
+# WASM payloads and language data are large and versioned by path.
+[[headers]]
+  for = "/wasm-files/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/tesseract-data/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# HTML is prerendered per route and regenerated on every deploy, so it must
+# revalidate. Without this the blanket immutable rule that used to live on /*
+# would pin a year-old copy of every page in intermediate caches.
 [[headers]]
   for = "/*.html"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
-    Cross-Origin-Embedder-Policy = "require-corp"
-    Cross-Origin-Opener-Policy = "same-origin"
 
-# SPA routing - redirect all routes to index.html
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+[[headers]]
+  for = "/sitemap.xml"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+    Content-Type = "application/xml; charset=utf-8"
+
+[[headers]]
+  for = "/robots.txt"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+# Redirects live in public/_redirects so that the built dist/ is self-contained.
 
 # Optimize build performance
 [build.processing]
@@ -72,13 +84,6 @@
 [build.processing.js]
   bundle = true
   minify = true
-
-[build.processing.html]
-  pretty_urls = true
-
-# Functions (not used but good to have)
-[functions]
-  directory = "netlify/functions"
 
 ## Lighthouse audits only on production after deploy is live
 [[context.production.plugins]]
@@ -96,11 +101,14 @@
   [[context.production.plugins.inputs.audits]]
     url = "https://pdf.techsource.pro/"
 
+  [[context.production.plugins.inputs.audits]]
+    url = "https://pdf.techsource.pro/compress"
+
 [context.production]
   command = "npm run build"
-  
+
 [context.deploy-preview]
   command = "npm run build"
-  
+
 [context.branch-deploy]
   command = "npm run build"

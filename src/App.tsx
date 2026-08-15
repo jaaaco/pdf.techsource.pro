@@ -17,6 +17,10 @@ const Merge = lazy(() => import('@/pages/Merge'))
 const Split = lazy(() => import('@/pages/Split'))
 const OCR = lazy(() => import('@/pages/OCR'))
 const Attribution = lazy(() => import('@/pages/Attribution'))
+const Privacy = lazy(() => import('@/pages/Privacy'))
+const Contact = lazy(() => import('@/pages/Contact'))
+const Blog = lazy(() => import('@/pages/Blog'))
+const Article = lazy(() => import('@/pages/Article'))
 
 // Loading component
 const LoadingSpinner: React.FC = () => (
@@ -245,6 +249,40 @@ function App() {
             } 
           />
           
+          {/* Content and policy pages */}
+          <Route
+            path="/blog"
+            element={
+              <RouteWrapper isOnline={isOnline}>
+                <Blog />
+              </RouteWrapper>
+            }
+          />
+          <Route
+            path="/blog/:slug"
+            element={
+              <RouteWrapper isOnline={isOnline}>
+                <Article />
+              </RouteWrapper>
+            }
+          />
+          <Route
+            path="/privacy"
+            element={
+              <RouteWrapper isOnline={isOnline}>
+                <Privacy />
+              </RouteWrapper>
+            }
+          />
+          <Route
+            path="/contact"
+            element={
+              <RouteWrapper isOnline={isOnline}>
+                <Contact />
+              </RouteWrapper>
+            }
+          />
+
           {/* Redirect old paths */}
           <Route path="/home" element={<Navigate to="/" replace />} />
           <Route path="/dashboard" element={<Navigate to="/" replace />} />

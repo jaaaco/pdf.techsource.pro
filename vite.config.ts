@@ -12,6 +12,9 @@ export default defineConfig({
       '@/workers': resolve(__dirname, './src/workers'),
       '@/lib': resolve(__dirname, './src/lib'),
       '@/pages': resolve(__dirname, './src/pages'),
+      // SEO copy and the article helpers live outside src/ because the Node
+      // prerender script imports the same files.
+      '@seo': resolve(__dirname, './seo'),
     },
   },
   worker: {
@@ -56,16 +59,19 @@ export default defineConfig({
     chunkSizeWarningLimit: 2000,
     assetsInlineLimit: 0 // Don't inline WASM files
   },
-  // Optimize for static hosting
-  base: './',
+  // Absolute base is required: prerendered pages live in subdirectories
+  // (dist/compress/index.html), and a relative base would make them resolve
+  // their assets to /compress/assets/... which does not exist.
+  base: '/',
   // WASM and Worker support
   optimizeDeps: {
     exclude: ['@/workers/*']
   },
-  // Headers for WASM and SharedArrayBuffer
+  // Dev headers mirror production. COEP is intentionally not set here either,
+  // so that a third-party embed which breaks under `require-corp` breaks in
+  // dev too instead of only after deploy.
   server: {
     headers: {
-      'Cross-Origin-Embedder-Policy': 'require-corp',
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Resource-Policy': 'cross-origin',
     },
@@ -75,7 +81,6 @@ export default defineConfig({
   },
   preview: {
     headers: {
-      'Cross-Origin-Embedder-Policy': 'require-corp',
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Resource-Policy': 'cross-origin',
     }

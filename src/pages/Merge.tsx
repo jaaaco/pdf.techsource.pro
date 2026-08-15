@@ -15,7 +15,6 @@ import {
   Grid,
   Alert,
   Chip,
-  Paper,
   List,
   ListItem,
   ListItemIcon,
@@ -37,6 +36,11 @@ import {
   Add as AddIcon,
 } from '@mui/icons-material';
 import Layout from '@/components/Layout';
+import ToolHero from '@/components/ToolHero';
+import SeoSection from '@/components/SeoSection';
+import Footer from '@/components/Footer';
+import { getRoute } from '@/seo/manifest';
+import useDocumentMeta from '@/seo/useDocumentMeta';
 import ProgressBar from '@/components/ProgressBar';
 import DownloadButton from '@/components/DownloadButton';
 import { WorkerCommunicator, TaskIdGenerator } from '@/workers/shared/message-router';
@@ -66,6 +70,13 @@ interface MergeState {
 
 const Merge: React.FC = () => {
   const theme = useTheme();
+  const route = getRoute('/merge')!;
+  useDocumentMeta({
+    title: route.title,
+    description: route.description,
+    path: route.path,
+    locale: route.locale,
+  });
   const [state, setState] = useState<MergeState>({
     files: [],
     options: {
@@ -236,18 +247,11 @@ const Merge: React.FC = () => {
   };
 
   return (
+    <>
     <Layout title="Merge PDFs" showBackButton>
       <Box sx={{ maxWidth: 800, mx: 'auto' }}>
         {/* Header */}
-        <Paper sx={{ p: 3, mb: 3, textAlign: 'center' }}>
-          <MergeIcon sx={{ fontSize: 48, color: 'success.main', mb: 2 }} />
-          <Typography variant="h4" gutterBottom>
-            Merge PDF Files
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Combine multiple PDF files into a single document with drag-and-drop ordering
-          </Typography>
-        </Paper>
+        <ToolHero route={route} icon={<MergeIcon sx={{ fontSize: 48, color: 'success.main', mb: 2 }} />} />
 
         {/* Error Display */}
         {state.error && (
@@ -492,8 +496,11 @@ const Merge: React.FC = () => {
             </CardContent>
           </Card>
         )}
+        <SeoSection route={route} />
       </Box>
     </Layout>
+    <Footer />
+    </>
   );
 };
 

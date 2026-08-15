@@ -1,46 +1,30 @@
 # TODO
 
-1. Implement google tag manager, right after <head> it should be:
+## Done
 
-<!-- Google Tag Manager -->
-<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','GTM-TAG-HERE');</script>
-<!-- End Google Tag Manager -->
+1. ~~Google Tag Manager~~ — wired via `VITE_GTM_ID` (`src/lib/gtm.ts`), gated by the consent banner and Google Consent Mode (`src/lib/consent.ts`).
+2. ~~Fix build and configure deployment on Netlify~~ — deploys from `main`.
+3. ~~Debug console behind a keyboard shortcut~~ — `src/hooks/useDebugConsole.ts`, state persisted.
+4. ~~Sentry error reporting~~ — `src/lib/monitoring.ts`, loaded lazily when `VITE_SENTRY_DSN` is set. Configured with `sendDefaultPii: false` and fully masked replays: a site that promises documents never leave the browser cannot ship unmasked session recordings.
+5. ~~Buy me a coffee / sponsor link~~ — `VITE_BUY_ME_COFFEE_URL`, shown in the app bar.
 
-And right after <body>
+## Open
 
-<!-- Google Tag Manager (noscript) -->
-<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TAG-HERE"
-height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-<!-- End Google Tag Manager (noscript) -->
+### Needs an account before it can be finished
 
-Or equvalent working exactly like that with React App.
+- **EthicalAds** — sign up at https://www.ethicalads.io/publishers/, then set `VITE_ETHICALADS_PUBLISHER` in Netlify. `src/components/AdSlot.tsx` renders nothing until it is set, so the site stays ad-free until then.
+- **Google Search Console** — verify the domain, submit `https://pdf.techsource.pro/sitemap.xml`, then wire the API for the ranking reports.
+- **IndexNow** — the key file is already in `public/`. Ping Bing/Yandex on deploy.
+- **Contact email** — `seo/site.json` has `contactEmail: null`, so the contact page shows only the GitHub route. Set it if a mailbox should be published.
 
-GOOGLE_TAG_MANAGER env (or another one wirjing with chosen solution) should be used while building and deploying the application.
+### Content and reach
 
-2. Fix build and configure deployment on Netlify
+- **Open Graph image** — no `og:image` is emitted. Social shares render bare. Needs a 1200x630 PNG in `public/` plus the tag in `scripts/prerender.mjs`.
+- **Polish version** — `/pl/*` routes with real Polish copy. `seo/routes.json` and the prerenderer already handle multiple locales and emit hreflang; the copy and the router entries are missing.
+- **Benchmarks** — measure the tools against a fixed corpus and publish the numbers. This is what makes the generated pages worth indexing rather than filler.
+- Article on Medium / dev.to to promote the service, cross-posted with `canonical_url` pointing here.
 
-3. Show debug console only after certain keyboard combination, remember that it's displayed in local storage or other simmilar way
+### Housekeeping
 
-4. Implement scentry error reporting
-
-import * as Sentry from "@sentry/react";
-
-Sentry.init({
-  dsn: "https://e2e8b92c12bfdf89bf28d0847e8b3c6c@o93080.ingest.us.sentry.io/4510552255823872",
-  // Setting this option to true will send default PII data to Sentry.
-  // For example, automatic IP address collection on events
-  sendDefaultPii: true
-});
-
-const container = document.getElementById("app");
-const root = createRoot(container);
-root.render(<App />);
-
-5. Add link to buy me a coffe / sponsor page
-
-6. Create article on Medium to promote the service
-
+- **The test suite is red and was before any of this work**: 22 failures plus a heap OOM when the whole suite runs. `tests/e2e/app-flow.test.tsx` (11) never resolves the lazy routes under jsdom; `tests/unit/file-utils.test.ts` (7) fails constructing mock `File` objects; `tests/unit/components/ProgressBar.test.tsx` (4) queries text that no longer exists. The four `tests/integration/*.test.tsx` files collect zero tests. CI runs `npm run test`, so the workflow cannot pass until this is dealt with.
+- `.env` is committed. Nothing in it is secret — a Sentry DSN and a GTM ID are public by design — but the file should move to Netlify environment variables and out of the repository.

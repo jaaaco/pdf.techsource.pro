@@ -116,11 +116,23 @@ docker run -p 80:80 \
 ## 🔒 Security Configuration
 
 ### Required Headers
-For WASM and SharedArrayBuffer support:
 ```
-Cross-Origin-Embedder-Policy: require-corp
 Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Resource-Policy: cross-origin
 ```
+
+`Cross-Origin-Embedder-Policy: require-corp` is **not** set. It only buys
+`SharedArrayBuffer`, which this codebase does not use, and it blocks every
+cross-origin frame without a CORP header — ad and analytics embeds included.
+See the note in `netlify.toml`.
+
+### Static output
+
+`npm run build` runs `tsc`, `vite build`, then `scripts/prerender.mjs`, which
+writes one HTML file per route (`dist/compress/index.html`, …) plus
+`sitemap.xml` and `robots.txt`. Any host used here must serve
+`dist/<route>/index.html` for `/<route>` and must **not** rewrite every path to
+the root `index.html` — that would undo the prerendering.
 
 ### Content Security Policy
 ```

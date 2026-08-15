@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && node scripts/prerender.mjs",
+    "prerender": "node scripts/prerender.mjs",
     "build:analyze": "npm run build && npx vite-bundle-analyzer dist/stats.html",
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
@@ -27,6 +28,7 @@
     "@mui/material": "^5.18.0",
     "@mui/x-data-grid": "^6.20.4",
     "@sentry/react": "^10.31.0",
+    "marked": "^15.0.12",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.4.449",
     "react": "^18.2.0",

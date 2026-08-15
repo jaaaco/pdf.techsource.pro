@@ -14,7 +14,6 @@ import {
   Grid,
   Alert,
   Chip,
-  Paper,
   List,
   ListItem,
   ListItemIcon,
@@ -36,6 +35,11 @@ import {
   Error as ErrorIcon,
 } from '@mui/icons-material';
 import Layout from '@/components/Layout';
+import ToolHero from '@/components/ToolHero';
+import SeoSection from '@/components/SeoSection';
+import Footer from '@/components/Footer';
+import { getRoute } from '@/seo/manifest';
+import useDocumentMeta from '@/seo/useDocumentMeta';
 import ProgressBar from '@/components/ProgressBar';
 import DownloadButton from '@/components/DownloadButton';
 import { WorkerCommunicator, TaskIdGenerator } from '@/workers/shared/message-router';
@@ -70,6 +74,13 @@ interface SplitState {
 
 const Split: React.FC = () => {
   const theme = useTheme();
+  const route = getRoute('/split')!;
+  useDocumentMeta({
+    title: route.title,
+    description: route.description,
+    path: route.path,
+    locale: route.locale,
+  });
   const [state, setState] = useState<SplitState>({
     file: null,
     pdfInfo: null,
@@ -299,18 +310,11 @@ const Split: React.FC = () => {
   };
 
   return (
+    <>
     <Layout title="Split PDF" showBackButton>
       <Box sx={{ maxWidth: 800, mx: 'auto' }}>
         {/* Header */}
-        <Paper sx={{ p: 3, mb: 3, textAlign: 'center' }}>
-          <SplitIcon sx={{ fontSize: 48, color: 'warning.main', mb: 2 }} />
-          <Typography variant="h4" gutterBottom>
-            Split PDF File
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Extract specific pages or ranges from PDF documents with flexible options
-          </Typography>
-        </Paper>
+        <ToolHero route={route} icon={<SplitIcon sx={{ fontSize: 48, color: 'warning.main', mb: 2 }} />} />
 
         {/* Error Display */}
         {state.error && (
@@ -552,8 +556,11 @@ const Split: React.FC = () => {
             </CardContent>
           </Card>
         )}
+        <SeoSection route={route} />
       </Box>
     </Layout>
+    <Footer />
+    </>
   );
 };
 

@@ -174,22 +174,41 @@ Key settings:
 - **Code splitting**: Manual chunks for `pdf-lib`, `react-vendor`, and workers
 - **WASM handling**: Assets go to `wasm/[name]-[hash]` directory
 - **Worker format**: ES modules
-- **Headers**: COOP/COEP/CORP headers for SharedArrayBuffer support
-- **Base path**: `./` for static hosting compatibility
+- **Headers**: COOP/CORP; see the COEP note below
+- **Base path**: `/` — absolute, because prerendered pages live in subdirectories
 
 ### Cross-Origin Headers
 
-Required for WASM and SharedArrayBuffer:
 ```
-Cross-Origin-Embedder-Policy: require-corp
 Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Resource-Policy: cross-origin
 ```
 
-These are configured in:
+**COEP is deliberately not set.** `Cross-Origin-Embedder-Policy: require-corp`
+gates `SharedArrayBuffer`, which nothing in this codebase uses —
+`src/workers/shared/wasm-loader.ts` only feature-detects it and never branches
+on the result. What it does do is block every cross-origin frame that does not
+send CORP, which includes ad and analytics embeds. If threaded WASM is ever
+needed, reintroduce it as `credentialless` and re-test third-party embeds.
+
+Configured in:
 - `vite.config.ts` (dev/preview servers)
-- `_headers` file (Netlify)
-- `netlify.toml` (Netlify configuration)
+- `netlify.toml` (production)
+- `_headers` / `_redirects` at the repo root (Cloudflare Pages, kept in sync but unused)
+
+### SEO pipeline
+
+Vite emits one `index.html` for all routes, which is unindexable. After
+`vite build`, `scripts/prerender.mjs` writes one real HTML file per route and
+per article — own title, description, canonical, hreflang, JSON-LD and a
+static copy of the page text — plus `sitemap.xml` and `robots.txt`.
+
+- Page copy lives in `seo/routes.json`, articles in `content/<locale>/*.md`.
+- `src/components/SeoSection.tsx` and `src/components/ToolHero.tsx` render the
+  same fields for hydrated React. **Prerendered HTML and rendered DOM must
+  agree** — showing a crawler different text than a visitor is cloaking.
+- `public/_redirects` returns **404**, not 200, for unknown URLs. Every real
+  route has its own file, so a 200 fallback would only serve to index typos.
 
 ## Common Patterns
 

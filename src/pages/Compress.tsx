@@ -17,7 +17,6 @@ import {
   Grid,
   Alert,
   Chip,
-  Paper,
   List,
   ListItem,
   ListItemIcon,
@@ -39,6 +38,11 @@ import {
   Star as HighQualityIcon,
 } from '@mui/icons-material';
 import Layout from '@/components/Layout';
+import ToolHero from '@/components/ToolHero';
+import SeoSection from '@/components/SeoSection';
+import Footer from '@/components/Footer';
+import { getRoute } from '@/seo/manifest';
+import useDocumentMeta from '@/seo/useDocumentMeta';
 import ProgressBar from '@/components/ProgressBar';
 import DownloadButton from '@/components/DownloadButton';
 import { WorkerCommunicator, TaskIdGenerator } from '@/workers/shared/message-router';
@@ -73,6 +77,13 @@ interface CompressionState {
 
 const Compress: React.FC = () => {
   const theme = useTheme();
+  const route = getRoute('/compress')!;
+  useDocumentMeta({
+    title: route.title,
+    description: route.description,
+    path: route.path,
+    locale: route.locale,
+  });
   const [isDebugVisible] = useDebugConsole();
   const [state, setState] = useState<CompressionState>({
     files: [],
@@ -394,20 +405,13 @@ const Compress: React.FC = () => {
   };
 
   return (
+    <>
     <Layout title="Compress PDF" showBackButton>
       <Box sx={{ maxWidth: 800, mx: 'auto' }}>
         {/* ... Header, Error, FileUpload, FileList ... (Keep existing JSX logic) */}
 
         {/* Header */}
-        <Paper sx={{ p: 3, mb: 3, textAlign: 'center' }}>
-          <CompressIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
-          <Typography variant="h4" gutterBottom>
-            Compress PDF Files
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Reduce PDF file size while maintaining quality using advanced compression algorithms
-          </Typography>
-        </Paper>
+        <ToolHero route={route} icon={<CompressIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />} />
 
         {/* Error Display */}
         {state.error && (
@@ -646,8 +650,11 @@ const Compress: React.FC = () => {
             </CardContent>
           </Card>
         )}
+        <SeoSection route={route} />
       </Box>
     </Layout>
+    <Footer />
+    </>
   );
 };
 

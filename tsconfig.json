@@ -27,9 +27,10 @@
       "@/components/*": ["./src/components/*"],
       "@/workers/*": ["./src/workers/*"],
       "@/lib/*": ["./src/lib/*"],
-      "@/pages/*": ["./src/pages/*"]
+      "@/pages/*": ["./src/pages/*"],
+      "@seo/*": ["./seo/*"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "seo"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

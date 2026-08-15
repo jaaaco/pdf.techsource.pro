@@ -1,2 +1,9 @@
-# Netlify redirects for SPA routing
-/*    /index.html   200
+# SPA fallback.
+#
+# Every real route is prerendered to its own index.html by scripts/prerender.mjs,
+# so Netlify serves those as static files before this rule is ever consulted.
+# What reaches this line is a URL that does not exist, which is why it returns
+# 404 rather than 200: a 200 here would make Google index every typo as a
+# duplicate of the homepage. The app shell still loads and renders its own
+# not-found page.
+/*    /index.html   404

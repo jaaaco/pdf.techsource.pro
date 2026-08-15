@@ -1,4 +1,8 @@
-# Cloudflare Pages redirects for SPA routing
-# Redirect all routes to index.html for client-side routing
+# Cloudflare Pages redirects for PDF Toolkit
+# Kept in sync with public/_redirects, which is what production actually uses.
+#
+# Real routes are prerendered to their own index.html, so this only catches
+# URLs that do not exist. It returns 404 on purpose - a 200 here would make
+# search engines index every mistyped URL as a copy of the homepage.
 
-/*    /index.html   200
+/*    /index.html   404

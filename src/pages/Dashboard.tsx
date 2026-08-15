@@ -40,6 +40,10 @@ import {
   GitHub as GitHubIcon,
   Description as LicenseIcon,
 } from '@mui/icons-material'
+import Footer from '@/components/Footer'
+import SeoSection from '@/components/SeoSection'
+import { getRoute } from '@/seo/manifest'
+import useDocumentMeta from '@/seo/useDocumentMeta'
 
 interface ToolCardProps {
   to: string;
@@ -124,6 +128,14 @@ const ToolCard: React.FC<ToolCardProps> = ({ to, title, description, features, i
 
 const Dashboard: React.FC = () => {
   const theme = useTheme();
+  const route = getRoute('/')!;
+
+  useDocumentMeta({
+    title: route.title,
+    description: route.description,
+    path: route.path,
+    locale: route.locale,
+  });
 
   return (
     <Box sx={{ minHeight: '100vh', backgroundColor: 'background.default' }}>
@@ -170,16 +182,16 @@ const Dashboard: React.FC = () => {
               mb: 2
             }}
           >
-            Professional PDF Toolkit
+            {route.h1}
           </Typography>
-          
-          <Typography 
-            variant="h5" 
+
+          <Typography
+            variant="h5"
             component="p"
-            color="text.secondary" 
-            sx={{ mb: 4, maxWidth: 600, mx: 'auto' }}
+            color="text.secondary"
+            sx={{ mb: 4, maxWidth: 700, mx: 'auto', fontSize: { xs: '1.05rem', md: '1.25rem' } }}
           >
-            Privacy-first PDF processing tools that run entirely in your browser
+            {route.intro}
           </Typography>
           
           <Box sx={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 1 }}>
@@ -424,7 +436,11 @@ const Dashboard: React.FC = () => {
             </Grid>
           </Grid>
         </Paper>
+
+        <SeoSection route={route} />
       </Container>
+
+      <Footer />
     </Box>
   )
 }
