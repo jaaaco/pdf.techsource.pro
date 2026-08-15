@@ -33,3 +33,7 @@ public/tesseract-data/*.traineddata
 .lighthouseci
 # Benchmark corpus is generated, not committed
 benchmarks/corpus/
+
+# Automation runtime state and logs
+automation/state/
+automation/logs/

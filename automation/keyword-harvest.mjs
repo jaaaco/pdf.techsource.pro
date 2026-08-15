@@ -52,8 +52,11 @@ const SEEDS = {
     'extract pages from pdf',
     'ocr pdf',
     'make scanned pdf searchable',
-    'pdf tool offline',
-    'pdf privacy',
+    // Bare "pdf privacy" and "pdf tool offline" were seeds in the first
+    // version. They pulled in hundreds of results about privacy policies and
+    // legislation - people looking for a document, not a tool. Every seed
+    // now names an operation.
+    'compress pdf offline',
     'edit pdf without uploading',
   ],
   pl: [
@@ -65,7 +68,7 @@ const SEEDS = {
     'wyodrebnij strony z pdf',
     'ocr pdf',
     'skan pdf na tekst',
-    'pdf offline',
+    'kompresja pdf offline',
     'pdf bez wysylania na serwer',
   ],
 }
@@ -115,7 +118,16 @@ const stackExchange = async (seed) => {
   return (data.items ?? []).map((item) => item.title)
 }
 
+/**
+ * Reddit's public search JSON now answers 403 to unauthenticated clients, so
+ * this contributes nothing and is left disabled rather than deleted: the
+ * endpoint is one OAuth app registration away from working again, and the
+ * shape of the call is the part worth keeping.
+ */
+const REDDIT_ENABLED = false
+
 const reddit = async (seed) => {
+  if (!REDDIT_ENABLED) return []
   const url = `https://www.reddit.com/search.json?q=${encodeURIComponent(seed)}&limit=25&sort=relevance`
   const data = await fetchJson(url)
   return (data?.data?.children ?? []).map((child) => child.data.title)
@@ -131,18 +143,52 @@ const clean = (phrase) =>
     .trim()
 
 /**
- * Anything that does not mention a PDF is noise from a broad seed. Length
- * bounds drop single words (too competitive to be worth a page) and whole
- * paragraphs pasted into a question title.
+ * An operation the site can actually perform. A phrase without one of these
+ * is not a job anybody is trying to do with this tool.
+ */
+const ACTIONS =
+  /\b(compress|compression|reduce|shrink|resize|optimi[sz]e|merge|combine|join|split|separate|extract|delete|remove|rotate|ocr|scan|scanned|searchable|convert|edit|zmniejsz|kompres|scal|polacz|łącz|podziel|wyodrebnij|wyodrębnij|obroc|obróć|skan|edytuj|konwert)\b/
+
+/**
+ * Phrases that contain "pdf" but are about something else entirely.
+ *
+ * The first harvest returned 2099 English phrases and most of the noise fell
+ * into two families: people looking for a *document* that happens to be a PDF
+ * ("privacy act 1988 pdf", "the right to privacy pdf"), and support queries
+ * about other vendors' desktop software ("pdf xchange security bulletin").
+ * Neither is a search this site can answer.
+ */
+const BLOCKED =
+  /\b(privacy policy|policy pdf|act \d{4}|\d{4} pdf|book|ebook download|free download|lyrics|resume|cv|template|xchange|foxit|nitro|sejda|smallpdf|ilovepdf|reader dc|crack|serial|license key)\b/
+
+/**
+ * Reject "<topic> pdf" - a phrase that ends in "pdf" and names no operation
+ * is somebody hunting for a file, not for a tool. This is the single rule
+ * that removes most of the noise.
+ */
+const isDocumentHunt = (phrase) => /\bpdf$/.test(phrase) && !ACTIONS.test(phrase)
+
+/**
+ * Length bounds drop single words - too competitive to be worth a page - and
+ * whole paragraphs pasted into a question title.
  */
 const isUsable = (phrase) =>
-  phrase.includes('pdf') && phrase.length >= 12 && phrase.length <= 90 && phrase.split(' ').length >= 3
+  phrase.includes('pdf') &&
+  phrase.length >= 12 &&
+  phrase.length <= 90 &&
+  phrase.split(' ').length >= 3 &&
+  ACTIONS.test(phrase) &&
+  !BLOCKED.test(phrase) &&
+  !isDocumentHunt(phrase)
 
 /** Rough intent bucket, used later to decide what kind of page to write. */
 const classify = (phrase) => {
   if (/\bhow\b|\bjak\b|tutorial|guide|poradnik/.test(phrase)) return 'how-to'
   if (/\bvs\b|versus|better than|alternative|zamiast|alternatywa/.test(phrase)) return 'comparison'
-  if (/free|darmow|online|offline|without|bez|no upload/.test(phrase)) return 'tool'
+  if (/without|no upload|offline|locally|in browser|bez wysy|offline|lokalnie|w przegl/.test(phrase)) {
+    return 'privacy'
+  }
+  if (/free|darmow|online|bez/.test(phrase)) return 'tool'
   return 'informational'
 }
 
