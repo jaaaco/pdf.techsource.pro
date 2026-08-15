@@ -34,7 +34,7 @@ const ensureDataLayer = () => {
 
   window.dataLayer = window.dataLayer || []
   if (!window.gtag) {
-    window.gtag = (...args: any[]) => {
+    window.gtag = (...args: unknown[]) => {
       window.dataLayer.push(args)
     }
   }
@@ -45,8 +45,8 @@ const pushInitEvent = () => {
     return
   }
 
-  const alreadyDispatched = window.dataLayer.some((event) => {
-    return event?.event === 'gtm.init_consent'
+  const alreadyDispatched = window.dataLayer.some((entry) => {
+    return (entry as { event?: string } | null)?.event === 'gtm.init_consent'
   })
 
   if (!alreadyDispatched) {
@@ -154,8 +154,8 @@ export type { ConsentValue }
 
 declare global {
   interface Window {
-    dataLayer: any[]
-    gtag: (...args: any[]) => void
+    dataLayer: unknown[]
+    gtag: (...args: unknown[]) => void
   }
 }
 
