@@ -1,6 +1,6 @@
 {
   "measuredAt": "2026-08-15",
-  "base": "http://localhost:4180",
+  "base": "https://pdf.techsource.pro",
   "chrome": "Chrome/151.0.7922.138",
   "results": [
     {
@@ -149,12 +149,12 @@
       "runs": [
         {
           "inputBytes": 649193,
-          "outputBytes": 683191,
+          "outputBytes": 683194,
           "inputPages": 5,
           "outputPages": 5,
           "pagesLost": 0,
           "outputMimeType": "application/pdf",
-          "elapsedMs": 4029,
+          "elapsedMs": 5034,
           "wordRecall": 1
         }
       ]
@@ -165,12 +165,12 @@
       "runs": [
         {
           "inputBytes": 4136509,
-          "outputBytes": 4196220,
+          "outputBytes": 4196222,
           "inputPages": 10,
           "outputPages": 10,
           "pagesLost": 0,
           "outputMimeType": "application/pdf",
-          "elapsedMs": 5037,
+          "elapsedMs": 5036,
           "wordRecall": 1
         }
       ]
@@ -181,12 +181,12 @@
       "runs": [
         {
           "inputBytes": 971666,
-          "outputBytes": 995047,
+          "outputBytes": 995048,
           "inputPages": 3,
           "outputPages": 3,
           "pagesLost": 0,
           "outputMimeType": "application/pdf",
-          "elapsedMs": 2030,
+          "elapsedMs": 2024,
           "wordRecall": 1
         }
       ]

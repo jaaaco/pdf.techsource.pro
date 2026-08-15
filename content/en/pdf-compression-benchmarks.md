@@ -71,6 +71,20 @@ hand you that, the tool detects it and returns your original untouched.
 Every output was checked for page count against its input. All of them
 matched. A size reduction is only good news if the document survived it.
 
+## OCR
+
+Recognised text is scored against the exact string that was drawn into the
+page before it was rasterised, so this is measured accuracy rather than an
+impression. The metric is word recall: of the words that should be findable,
+how many are. That is the number that maps onto "can I search this document",
+which is the only reason to run OCR at all.
+
+| Document | Word recall | Time | Output |
+|---|---|---|---|
+| scan-150dpi-5p.pdf | **100.0%** | 5.0 s | 667 KB |
+| scan-300dpi-10p.pdf | **100.0%** | 5.0 s | 4.00 MB |
+| scan-clean-300dpi-3p.pdf | **100.0%** | 2.0 s | 972 KB |
+
 ## Reproducing this
 
 ```bash
