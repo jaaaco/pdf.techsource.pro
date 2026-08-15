@@ -30,19 +30,25 @@ export const initMonitoring = (): void => {
 
   sentry
     .then((Sentry) => {
+      // Privacy settings are not tunable knobs here, they are the product.
+      // This site tells people their documents never leave the browser, so
+      // error reporting must not quietly ship file names, page text or IP
+      // addresses to a third party. Hence: replays fully masked, no default
+      // PII, and replay sampling only on error rather than on every session.
       Sentry.init({
         dsn: import.meta.env.VITE_SENTRY_DSN,
         integrations: [
           Sentry.browserTracingIntegration(),
           Sentry.replayIntegration({
-            maskAllText: false,
-            blockAllMedia: false,
+            maskAllText: true,
+            maskAllInputs: true,
+            blockAllMedia: true,
           }),
         ],
-        tracesSampleRate: 1.0,
-        replaysSessionSampleRate: 0.1,
+        tracesSampleRate: 0.2,
+        replaysSessionSampleRate: 0,
         replaysOnErrorSampleRate: 1.0,
-        sendDefaultPii: true,
+        sendDefaultPii: false,
       })
     })
     .catch((error) => {
