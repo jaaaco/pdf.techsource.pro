@@ -35,7 +35,6 @@ import {
   Description as FileIcon,
   CloudUpload as UploadIcon,
   Language as LanguageIcon,
-  Visibility as PreviewIcon,
 
   Speed as SpeedIcon,
   HighQuality as QualityIcon,
@@ -55,7 +54,7 @@ import { useDebugConsole } from '@/hooks/useDebugConsole';
 
 interface OCROptions {
   languages: string[];
-  outputFormat: 'searchable-pdf' | 'text-only' | 'pdf-with-text';
+  outputFormat: 'searchable-pdf' | 'text-only';
   preserveFormatting?: boolean;
   confidenceThreshold?: number;
 }
@@ -98,7 +97,7 @@ const OCR: React.FC = () => {
       languages: ['eng'],
       outputFormat: 'searchable-pdf',
       preserveFormatting: true,
-      confidenceThreshold: 70,
+      confidenceThreshold: 50,
     },
     isProcessing: false,
     progress: null,
@@ -298,26 +297,35 @@ const OCR: React.FC = () => {
     return `${minutes}m ${remainingSeconds}s`;
   };
 
+  /**
+   * Limited to what the text layer can actually encode.
+   *
+   * The searchable PDF embeds DejaVu Sans, which covers Latin, Latin Extended
+   * and Cyrillic. Japanese, Chinese, Arabic and Hindi used to be offered here
+   * and could never produce a text layer - every word failed to encode and was
+   * dropped by a silent catch, so the tool reported success and returned a PDF
+   * with nothing in it. Offering them again needs a font that covers them.
+   *
+   * Polish was missing despite being a target language, and is now included.
+   */
   const getLanguageOptions = () => [
     { code: 'eng', name: 'English' },
-    { code: 'spa', name: 'Spanish' },
-    { code: 'fra', name: 'French' },
+    { code: 'pol', name: 'Polish' },
     { code: 'deu', name: 'German' },
+    { code: 'fra', name: 'French' },
+    { code: 'spa', name: 'Spanish' },
     { code: 'ita', name: 'Italian' },
     { code: 'por', name: 'Portuguese' },
+    { code: 'nld', name: 'Dutch' },
+    { code: 'ces', name: 'Czech' },
     { code: 'rus', name: 'Russian' },
-    { code: 'jpn', name: 'Japanese' },
-    { code: 'chi_sim', name: 'Chinese (Simplified)' },
-    { code: 'chi_tra', name: 'Chinese (Traditional)' },
-    { code: 'ara', name: 'Arabic' },
-    { code: 'hin', name: 'Hindi' },
+    { code: 'ukr', name: 'Ukrainian' },
   ];
 
   const getOutputFormatDescription = (format: string) => {
     switch (format) {
       case 'searchable-pdf': return 'PDF with invisible text layer (recommended)';
       case 'text-only': return 'Plain text file with extracted content';
-      case 'pdf-with-text': return 'PDF with visible text overlay';
       default: return '';
     }
   };
@@ -498,12 +506,10 @@ const OCR: React.FC = () => {
                           Text Only
                         </Box>
                       </MenuItem>
-                      <MenuItem value="pdf-with-text">
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <PreviewIcon sx={{ mr: 1 }} />
-                          PDF with Text Overlay
-                        </Box>
-                      </MenuItem>
+                      {/* "PDF with Text Overlay" was here. The worker only
+                          ever implemented two formats and fell through to the
+                          text branch, so picking it produced a .txt file from
+                          a menu item promising a PDF. */}
                     </Select>
                   </FormControl>
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>

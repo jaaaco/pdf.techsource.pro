@@ -1,6 +1,6 @@
 {
   "measuredAt": "2026-08-15",
-  "base": "https://pdf.techsource.pro",
+  "base": "http://localhost:4180",
   "chrome": "Chrome/151.0.7922.138",
   "results": [
     {
@@ -149,13 +149,13 @@
       "runs": [
         {
           "inputBytes": 649193,
-          "outputBytes": 648439,
+          "outputBytes": 683191,
           "inputPages": 5,
           "outputPages": 5,
           "pagesLost": 0,
           "outputMimeType": "application/pdf",
-          "elapsedMs": 4022,
-          "wordRecall": 0
+          "elapsedMs": 4029,
+          "wordRecall": 1
         }
       ]
     },
@@ -165,8 +165,13 @@
       "runs": [
         {
           "inputBytes": 4136509,
+          "outputBytes": 4196220,
           "inputPages": 10,
-          "error": "There's a problem with the PDF file. It might be corrupted or in an unsupported format. [worker: There's a problem with the PDF file \"scan-300dpi-10p.pdf\". It might be corrupted or in an unsupported format. (Raw: Failed to process page 1: TypeError: Cannot read properties of undefined (reading 'createElement'))]"
+          "outputPages": 10,
+          "pagesLost": 0,
+          "outputMimeType": "application/pdf",
+          "elapsedMs": 5037,
+          "wordRecall": 1
         }
       ]
     },
@@ -176,8 +181,13 @@
       "runs": [
         {
           "inputBytes": 971666,
+          "outputBytes": 995047,
           "inputPages": 3,
-          "error": "There's a problem with the PDF file. It might be corrupted or in an unsupported format. [worker: There's a problem with the PDF file \"scan-clean-300dpi-3p.pdf\". It might be corrupted or in an unsupported format. (Raw: Failed to process page 1: TypeError: Cannot read properties of undefined (reading 'createElement'))]"
+          "outputPages": 3,
+          "pagesLost": 0,
+          "outputMimeType": "application/pdf",
+          "elapsedMs": 2030,
+          "wordRecall": 1
         }
       ]
     }

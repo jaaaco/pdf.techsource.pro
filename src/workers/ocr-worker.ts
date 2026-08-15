@@ -3,7 +3,8 @@
  * Validates: Requirements 6.1, 6.2, 6.3, 6.4, 6.5
  */
 
-import { PDFDocument, rgb } from 'pdf-lib';
+import { PDFDocument, PDFFont, rgb } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 import { createWorker } from 'tesseract.js';
 import * as pdfjsLib from 'pdfjs-dist';
 import { MemoryManager } from './shared/memory-manager';
@@ -16,6 +17,51 @@ import { FileUtils } from '../lib/file-utils';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
+/**
+ * The text layer needs a font that can encode what Tesseract read.
+ *
+ * pdf-lib's built-in fonts are WinAnsi, which covers almost nothing: of the
+ * Polish letters ąćęłńóśźż only ó encodes, and Cyrillic fails entirely. The
+ * failures were silent - every word threw inside a swallowed catch and simply
+ * vanished from the output.
+ *
+ * DejaVu Sans covers Latin, Latin Extended and Cyrillic. It is 750 kB, so it
+ * is imported as a URL and fetched only when OCR actually runs, and pdf-lib
+ * subsets it on save so the produced PDF carries only the glyphs it uses.
+ */
+import unicodeFontUrl from 'dejavu-fonts-ttf/ttf/DejaVuSans.ttf?url';
+
+/**
+ * Canvas factory backed by OffscreenCanvas.
+ *
+ * pdf.js defaults to DOMCanvasFactory, which calls
+ * `globalThis.document.createElement('canvas')`. There is no `document` in a
+ * Web Worker, so any page that made pdf.js reach for a scratch canvas - which
+ * it does for large images, and a 300 dpi A4 scan qualifies - died with
+ * "Cannot read properties of undefined (reading 'createElement')".
+ */
+class OffscreenCanvasFactory {
+  create(width: number, height: number) {
+    const canvas = new OffscreenCanvas(Math.max(1, width), Math.max(1, height));
+    return { canvas, context: canvas.getContext('2d') };
+  }
+
+  reset(canvasAndContext: { canvas: OffscreenCanvas | null }, width: number, height: number) {
+    if (!canvasAndContext.canvas) throw new Error('Canvas is not specified');
+    canvasAndContext.canvas.width = Math.max(1, width);
+    canvasAndContext.canvas.height = Math.max(1, height);
+  }
+
+  destroy(canvasAndContext: { canvas: OffscreenCanvas | null; context: unknown }) {
+    if (canvasAndContext.canvas) {
+      canvasAndContext.canvas.width = 0;
+      canvasAndContext.canvas.height = 0;
+    }
+    canvasAndContext.canvas = null;
+    canvasAndContext.context = null;
+  }
+}
+
 export interface OCROptions {
   languages: string[];
   outputFormat: 'searchable-pdf' | 'text-only';
@@ -26,6 +72,52 @@ export interface OCROptions {
     enhance: boolean;
   };
 }
+
+interface RecognisedWord {
+  text: string;
+  confidence: number;
+  bbox: { x: number; y: number; width: number; height: number };
+}
+
+/**
+ * Pulls the word list out of a Tesseract result.
+ *
+ * This used to read `data.words`, which does not exist in tesseract.js v7 -
+ * the field was removed and words now live nested under
+ * blocks > paragraphs > lines > words. `(data.words || [])` therefore
+ * evaluated to an empty array on every page, every guard downstream saw
+ * zero words, and the "searchable" PDF shipped with no text layer at all
+ * while reporting success. Recognition was working perfectly the whole time;
+ * only this lookup was wrong.
+ */
+const extractWords = (data: unknown): RecognisedWord[] => {
+  const page = data as {
+    words?: unknown[]
+    blocks?: Array<{ paragraphs?: Array<{ lines?: Array<{ words?: unknown[] }> }> }>
+  };
+
+  const raw: unknown[] =
+    page.blocks?.flatMap(
+      (block) => block.paragraphs?.flatMap((paragraph) => paragraph.lines?.flatMap((line) => line.words ?? []) ?? []) ?? [],
+    ) ??
+    // Kept as a fallback in case a future version restores the flat field.
+    page.words ??
+    [];
+
+  return raw
+    .map((entry) => entry as { text?: string; confidence?: number; bbox?: Record<string, number> })
+    .filter((word) => word.text?.trim() && word.bbox)
+    .map((word) => ({
+      text: word.text as string,
+      confidence: word.confidence ?? 0,
+      bbox: {
+        x: word.bbox!.x0,
+        y: word.bbox!.y0,
+        width: word.bbox!.x1 - word.bbox!.x0,
+        height: word.bbox!.y1 - word.bbox!.y0,
+      },
+    }));
+};
 
 interface OCRResult {
   text: string;
@@ -99,8 +191,12 @@ class OCRWorker {
       const sourcePdf = await PDFDocument.load(arrayBuffer);
       const pageCount = sourcePdf.getPageCount();
 
-      // Load with PDF.js for rendering
-      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      // Load with PDF.js for rendering. The canvas factory is not optional
+      // here - see OffscreenCanvasFactory above.
+      const loadingTask = pdfjsLib.getDocument({
+        data: arrayBuffer,
+        CanvasFactory: OffscreenCanvasFactory as never,
+      });
       const pdfJsDoc = await loadingTask.promise;
 
       // Step 3: Process each page
@@ -185,7 +281,6 @@ class OCRWorker {
     scale: number
   ): Promise<OCRResult> {
     try {
-      this.reportProgress(0, 100, 'Debug', `Page ${pageNumber}: Getting page...`);
       const page = await pdfJsDoc.getPage(pageNumber);
       const viewport = page.getViewport({ scale });
 
@@ -193,30 +288,26 @@ class OCRWorker {
       if (typeof OffscreenCanvas === 'undefined') {
         throw new Error('OffscreenCanvas is not supported in this browser environment.');
       }
-
-      this.reportProgress(0, 100, 'Debug', `Page ${pageNumber}: Creating canvas...`);
       // Render to OffscreenCanvas
       const canvas = new OffscreenCanvas(viewport.width, viewport.height);
       const context = canvas.getContext('2d');
 
       if (!context) throw new Error('Failed to get canvas context');
-
-      this.reportProgress(0, 100, 'Debug', `Page ${pageNumber}: Rendering PDF...`);
       await page.render({
         canvasContext: context as any, // Type mismatch in some versions, cast to any
         viewport
       } as any).promise;
-
-      this.reportProgress(0, 100, 'Debug', `Page ${pageNumber}: Converting to blob...`);
       const blob = await canvas.convertToBlob();
-
-      this.reportProgress(0, 100, 'Debug', `Page ${pageNumber}: Running Tesseract...`);
-      // Run Tesseract
-      const result = await this.tesseractWorker.recognize(blob);
+      // The third argument selects which outputs Tesseract produces, and
+      // `blocks` is off by default (see
+      // tesseract.js/src/worker-script/constants/defaultOutput.js). Without
+      // asking for it, `data.blocks` comes back null and there are no word
+      // boxes to build a text layer from - the field is present in the
+      // result, just empty, which is why this looked like working code.
+      const result = await this.tesseractWorker.recognize(blob, {}, { blocks: true });
       const data = result.data;
 
       if (!data) {
-        this.reportProgress(0, 100, 'Debug', `Page ${pageNumber}: No data returned from Tesseract`);
         return {
           text: '',
           confidence: 0,
@@ -227,28 +318,21 @@ class OCRWorker {
         };
       }
 
-      this.reportProgress(0, 100, 'Debug', `Page ${pageNumber}: Page processed. Data keys: ${Object.keys(data).join(', ')}`);
-
       return {
         text: data.text || '',
         confidence: data.confidence || 0,
-        words: (data.words || []).map((word: any) => ({
-          text: word.text,
-          confidence: word.confidence,
-          bbox: {
-            x: word.bbox.x0,
-            y: word.bbox.y0,
-            width: word.bbox.x1 - word.bbox.x0,
-            height: word.bbox.y1 - word.bbox.y0
-          }
-        })),
+        words: extractWords(data),
         pageWidth: viewport.width,
         pageHeight: viewport.height,
         scale: scale
       };
 
     } catch (error) {
-      throw new Error(`Failed to process page ${pageNumber}: ${error}`);
+      // Preserve the original error text. The wrapper used to hide whether
+      // this was a bad document or a bug in here, and the classifier then
+      // guessed "your PDF is corrupted" at the user.
+      const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+      throw new Error(`Failed to process page ${pageNumber}: ${detail}`);
     }
   }
 
@@ -263,6 +347,11 @@ class OCRWorker {
   ): Promise<ProcessedFile> {
     try {
       const searchablePdf = await PDFDocument.create();
+      searchablePdf.registerFontkit(fontkit);
+
+      // Fetched lazily and subset on save - see the import comment.
+      const fontBytes = await (await fetch(unicodeFontUrl)).arrayBuffer();
+      const font: PDFFont = await searchablePdf.embedFont(fontBytes, { subset: true });
 
       // Copy metadata
       const title = sourcePdf.getTitle();
@@ -274,42 +363,47 @@ class OCRWorker {
       const pageIndices = Array.from({ length: sourcePdf.getPageCount() }, (_, i) => i);
       const copiedPages = await searchablePdf.copyPages(sourcePdf, pageIndices);
 
+      let written = 0;
+      let skippedLowConfidence = 0;
+      let skippedUnencodable = 0;
+      let totalConfidence = 0;
+
       copiedPages.forEach((page, index) => {
         searchablePdf.addPage(page);
         const result = ocrResults[index];
+        if (!result || result.words.length === 0) return;
 
-        if (result && result.words.length > 0) {
-          const { height } = page.getSize();
+        const { height } = page.getSize();
 
-          // Add text overlay
-          result.words.forEach(word => {
-            if (word.confidence < options.confidenceThreshold) return; // Skip low confidence
+        result.words.forEach(word => {
+          if (word.confidence < options.confidenceThreshold) {
+            skippedLowConfidence += 1;
+            return;
+          }
 
-            // Convert coordinates
-            // Tesseract: Top-Left origin, scaled pixels
-            // PDF-lib: Bottom-Left origin, points (usually 72 dpi)
+          // Tesseract reports top-left origin in rendered pixels; PDF uses a
+          // bottom-left origin in points, and recognition ran at `scale`.
+          const pdfX = word.bbox.x / result.scale;
+          const pdfY = height - (word.bbox.y / result.scale) - (word.bbox.height / result.scale);
 
-            // Adjust scale (Tesseract ran on scale * PDF points)
-            // So convert back to points: value / scale
-
-            const pdfX = word.bbox.x / result.scale;
-            // Flip Y axis
-            // y_pdf = pageHeight - (y_top / scale) - (height / scale)
-            const pdfY = height - (word.bbox.y / result.scale) - (word.bbox.height / result.scale);
-
-            try {
-              page.drawText(word.text, {
-                x: pdfX,
-                y: pdfY,
-                size: word.bbox.height / result.scale, // Approximate font size
-                color: rgb(0, 0, 0),
-                opacity: 0, // Invisible
-              });
-            } catch (e) {
-              // Ignore drawing errors for specific words
-            }
-          });
-        }
+          try {
+            page.drawText(word.text, {
+              x: pdfX,
+              y: pdfY,
+              size: word.bbox.height / result.scale, // Approximate font size
+              font,
+              color: rgb(0, 0, 0),
+              opacity: 0, // Invisible - the scan underneath stays visible
+            });
+            written += 1;
+            totalConfidence += word.confidence;
+          } catch {
+            // A glyph the font cannot encode. Counted rather than ignored:
+            // this used to be a silent catch, which is how an entire
+            // language could disappear from the output without a trace.
+            skippedUnencodable += 1;
+          }
+        });
       });
 
       const pdfBytes = await searchablePdf.save();
@@ -321,8 +415,12 @@ class OCRWorker {
         mimeType: 'application/pdf',
         metadata: {
           originalFileName,
-          ocrLanguages: ['eng'], // Simplified
-          totalPages: ocrResults.length
+          ocrLanguages: options.languages,
+          totalPages: ocrResults.length,
+          wordsWritten: written,
+          skippedLowConfidence,
+          skippedUnencodable,
+          averageConfidence: written > 0 ? Math.round(totalConfidence / written) : 0
         }
       };
 

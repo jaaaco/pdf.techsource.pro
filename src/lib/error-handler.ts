@@ -72,15 +72,35 @@ export class ErrorHandler {
     const message = error.message.toLowerCase();
     const name = error.name.toLowerCase();
 
+    // A TypeError or ReferenceError is a bug in this code, never a problem
+    // with the user's document. This has to come first: the message
+    // "cannot read properties of undefined" contains the word "read", and
+    // the substring matching below used to classify it as FILE_ERROR - so a
+    // crash in the OCR worker told people their perfectly good scan was
+    // corrupted and advised them to re-scan it.
+    //
+    // The message is checked as well as the name because workers rethrow
+    // with a wrapper Error, which loses the original constructor.
+    if (
+      name === 'typeerror' || name === 'referenceerror' || name === 'syntaxerror' ||
+      message.includes('typeerror') || message.includes('referenceerror') ||
+      message.includes('cannot read properties') || message.includes('is not a function') ||
+      message.includes('is not defined')
+    ) {
+      return 'PROCESSING_ERROR';
+    }
+
     // Memory-related errors
-    if (message.includes('memory') || message.includes('allocation') || 
+    if (message.includes('memory') || message.includes('allocation') ||
         name.includes('memory') || message.includes('out of memory')) {
       return 'MEMORY_LIMIT';
     }
 
-    // File-related errors
-    if (message.includes('file') || message.includes('read') || 
-        message.includes('invalid pdf') || message.includes('corrupted')) {
+    // File-related errors. The bare word "read" used to be matched here and
+    // is not, because it matches every "cannot read properties of X" that
+    // JavaScript produces. Those are caught above as bugs instead.
+    if (message.includes('file') || message.includes('invalid pdf') ||
+        message.includes('corrupted') || message.includes('unsupported format')) {
       return 'FILE_ERROR';
     }
 

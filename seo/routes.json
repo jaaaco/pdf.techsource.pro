@@ -26,7 +26,7 @@
       },
       {
         "q": "Does it work offline?",
-        "a": "Yes. Once the page has loaded, the tools keep working with no network connection. Handy on a plane or on a machine that is not allowed to talk to the internet."
+        "a": "Compress, merge and split do: once the page has loaded, they keep working with no network connection. OCR is the exception and needs the network the first time you run it, because the recognition engine and the language data are fetched on demand rather than shipped with the page. After one successful run they are cached and OCR works offline too, until the browser evicts them."
       },
       {
         "q": "What does it cost?",
@@ -142,15 +142,15 @@
     "h1": "OCR a scanned PDF without sending it to a server",
     "intro": "A scan is a picture of text, which means Ctrl+F finds nothing. OCR reads the picture and puts a real text layer underneath it, so the document becomes searchable and copyable while still looking exactly the same. This runs on Tesseract compiled to WebAssembly, in your browser, which is why you can OCR a medical record or a signed contract without wondering where the file ended up.",
     "bullets": [
-      "Multi-language recognition, including languages with diacritics",
+      "Eleven languages across Latin and Cyrillic scripts, Polish included",
       "The visible page is unchanged - the text layer goes underneath",
       "Progress reporting, because OCR is the slowest of the four tools",
-      "Fully local, which matters more here than anywhere else"
+      "Your document stays local; the engine itself is fetched from a CDN"
     ],
     "faq": [
       {
         "q": "How accurate is browser OCR compared to a paid service?",
-        "a": "On a clean 300 dpi scan, Tesseract is close to commercial engines for ordinary printed text. It degrades faster than they do on low-resolution scans, heavy skew, handwriting or unusual fonts. If your source is a phone photo of a crumpled page, expect to fix things by hand."
+        "a": "Measured on our benchmark: a 150 dpi scan with realistic skew and noise came back with every word findable. Tesseract is close to commercial engines on ordinary printed text and degrades faster than they do on heavy skew, handwriting or unusual fonts. If your source is a phone photo of a crumpled page, expect to fix things by hand."
       },
       {
         "q": "Why is OCR so much slower than the other tools?",
@@ -158,7 +158,11 @@
       },
       {
         "q": "Which languages are supported?",
-        "a": "Tesseract ships language data for over a hundred languages. Pick the language of the document before you start, because running English recognition over Polish or German text produces mangled output."
+        "a": "English, Polish, German, French, Spanish, Italian, Portuguese, Dutch, Czech, Russian and Ukrainian - Latin and Cyrillic scripts, which is what the font embedded in the text layer covers. Chinese, Japanese and Hindi are not offered because that font has no glyphs for them: the text layer would come out as null bytes rather than searchable words. We checked, rather than assuming."
+      },
+      {
+        "q": "Does OCR need the internet?",
+        "a": "The first run does. The recognition engine and the language data are downloaded on demand from a public CDN rather than shipped with the page, so a cold start needs a connection. Your document is not part of that - it never leaves the browser - but the CDN does see that someone requested a particular language. After one successful run everything is cached locally."
       }
     ]
   },
