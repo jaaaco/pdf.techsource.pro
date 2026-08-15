@@ -45,19 +45,23 @@
     "h1": "Compress a PDF without uploading it",
     "intro": "Scanned documents are heavy because every page is a photograph. Compression re-encodes those images at a lower resolution and quality, which is usually the difference between a 24 MB email attachment and a 2 MB one. Everything happens in this tab: choose the file, choose how aggressive you want to be, get the smaller file back.",
     "bullets": [
-      "Four presets, from screen-quality to print-quality",
-      "Progress reporting on long files, because compression is not instant",
-      "The original is never modified - you get a new file",
+      "Two presets: screen for the smallest file, ebook for a readable middle ground",
+      "Measured on a public benchmark corpus, not estimated",
+      "Never returns a file larger than the one you gave it",
       "No upload, so no size cap imposed by a server"
     ],
     "faq": [
       {
         "q": "How much smaller will my PDF get?",
-        "a": "It depends entirely on what is inside. A 300 dpi scan usually drops by 80-95 percent at the screen preset. A text-only PDF exported from Word may barely change, because there are no images to re-encode and the text is already compressed."
+        "a": "Measured on our benchmark corpus: a 10-page 300 dpi scan went from 3.95 MB to 0.17 MB at the screen preset, a 96 percent reduction, and to 0.47 MB at ebook. A 150 dpi scan, which has less redundancy to throw away, dropped 87 percent and 61 percent. The numbers and the corpus that produced them are in the repository, so you can rerun them."
+      },
+      {
+        "q": "What about a PDF exported from Word?",
+        "a": "It will come back unchanged. Compression here works by re-rendering each page as an image, which is a large win on a scan and a loss on a document that is already vector text - on a 20-page Word export the re-rendered version was over a hundred times larger. Rather than hand you that, the tool detects it and returns your original file untouched."
       },
       {
         "q": "Will compression ruin the quality?",
-        "a": "The screen preset is visibly softer at full zoom and is meant for reading on a display or attaching to an email. The print preset is close to indistinguishable at normal viewing size. Start with ebook, and step up if the result looks rough."
+        "a": "The screen preset is visibly softer at full zoom and is meant for reading on a display or attaching to an email. Ebook keeps noticeably more detail at roughly three times the file size. Start with ebook and drop to screen if it is still too big for what you need."
       },
       {
         "q": "Can I compress a PDF that contains confidential data?",

@@ -3,7 +3,7 @@
  * Validates: Requirements 3.1, 3.5
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -30,12 +30,10 @@ import {
   Compress as CompressIcon,
   Settings as SettingsIcon,
   HighQuality as QualityIcon,
-  Print as PrintIcon,
   Computer as ScreenIcon,
   Delete as DeleteIcon,
   Description as FileIcon,
   CloudUpload as UploadIcon,
-  Star as HighQualityIcon,
 } from '@mui/icons-material';
 import Layout from '@/components/Layout';
 import ToolHero from '@/components/ToolHero';
@@ -56,7 +54,12 @@ import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 interface CompressionOptions {
-  quality: 'screen' | 'ebook' | 'printer' | 'prepress';
+  /**
+   * Only the two rasterising presets remain. 'printer' and 'prepress' were
+   * removed after the benchmark showed they returned the input unchanged in
+   * 0.0s on every fixture in the corpus.
+   */
+  quality: 'screen' | 'ebook';
   colorSpace?: 'RGB' | 'CMYK' | 'Gray';
   imageQuality?: number;
   removeMetadata?: boolean;
@@ -74,6 +77,35 @@ interface CompressionState {
   error: string | null;
   debugLogs: string[];
 }
+
+const stripCompressedSuffix = (name: string) => name.replace(/_compressed(?=\.[^.]+$)/, '');
+
+/**
+ * Refuses to hand back a file that got bigger.
+ *
+ * Compression here works by rasterising each page, which is a large win on a
+ * scan and a disaster on a PDF that was already vector text - measured at
+ * 110x on a twenty-page Word export. Returning that from a button labelled
+ * "Compress" is indefensible, so when the result is not actually smaller the
+ * original is returned untouched and the UI says what happened.
+ */
+const keepSmallerResult = async (
+  produced: ProcessedFile,
+  sources: File[]
+): Promise<ProcessedFile> => {
+  const source = sources.find(file => file.name === stripCompressedSuffix(produced.name));
+  if (!source || produced.size < source.size) return produced;
+
+  return {
+    ...produced,
+    name: source.name,
+    data: new Uint8Array(await source.arrayBuffer()),
+    size: source.size,
+    originalSize: source.size,
+    compressionRatio: 1,
+    metadata: { ...produced.metadata, unchanged: true, attemptedSize: produced.size },
+  };
+};
 
 const Compress: React.FC = () => {
   const theme = useTheme();
@@ -99,6 +131,14 @@ const Compress: React.FC = () => {
     debugLogs: [],
   });
 
+  // The worker's completion callback is created once and lives outside the
+  // render cycle, so it cannot read state.files. A ref keeps the originals
+  // reachable for the size guard.
+  const inputFilesRef = useRef<File[]>([]);
+  useEffect(() => {
+    inputFilesRef.current = state.files;
+  }, [state.files]);
+
   const addLog = useCallback((message: string) => {
     const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
     setState(prev => ({
@@ -119,13 +159,25 @@ const Compress: React.FC = () => {
       }));
     },
     onComplete: (message) => {
-      setState(prev => ({
-        ...prev,
-        isProcessing: false,
-        progress: null,
-        results: (message.payload as any).files,
-        debugLogs: [...prev.debugLogs, `[${new Date().toISOString().split('T')[1].slice(0, -1)}] Complete: Processed ${(message.payload as any).files.length} file(s)`]
-      }));
+      const produced = (message.payload as { files: ProcessedFile[] }).files;
+
+      // The size guard has to read the original bytes, which is async, so the
+      // state update waits for it rather than happening inline.
+      void Promise.all(produced.map(file => keepSmallerResult(file, inputFilesRef.current)))
+        .then(results => {
+          const kept = results.filter(file => file.metadata?.unchanged).length;
+          setState(prev => ({
+            ...prev,
+            isProcessing: false,
+            progress: null,
+            results,
+            debugLogs: [
+              ...prev.debugLogs,
+              `[${new Date().toISOString().split('T')[1].slice(0, -1)}] Complete: Processed ${results.length} file(s)` +
+                (kept > 0 ? ` (${kept} already optimal, left unchanged)` : '')
+            ]
+          }));
+        });
     },
     onError: (message) => {
       const rawError = message.payload as any;
@@ -211,9 +263,9 @@ const Compress: React.FC = () => {
     addLog(`Created Task ID: ${taskId}`);
 
     try {
-      // Strategy: Main Thread Rendering for Rasterization (Screen/Ebook)
-      // to ensure correct font rendering via DOM/System Fonts.
-      if (state.options.quality === 'screen' || state.options.quality === 'ebook') {
+      // Rasterisation runs on the main thread so that pages render with the
+      // system fonts the DOM has, rather than whatever a worker can resolve.
+      {
         addLog('Using Main Thread Rendering Strategy (High Compatibility)');
 
         for (let i = 0; i < state.files.length; i++) {
@@ -315,18 +367,6 @@ const Compress: React.FC = () => {
             timestamp: Date.now()
           });
         }
-
-      } else {
-        // Standard Worker-based Optimization
-        workerCommunicator.sendMessage({
-          type: 'compress',
-          payload: {
-            files: state.files,
-            options: state.options
-          },
-          taskId,
-          timestamp: Date.now()
-        });
       }
 
     } catch (error) {
@@ -398,8 +438,6 @@ const Compress: React.FC = () => {
     switch (quality) {
       case 'screen': return 'Smallest file size, suitable for screen viewing (72 DPI)';
       case 'ebook': return 'Balanced compression for digital reading (150 DPI)';
-      case 'printer': return 'Good quality for printing (300 DPI)';
-      case 'prepress': return 'Highest quality for professional printing (no downsampling)';
       default: return '';
     }
   };
@@ -523,18 +561,12 @@ const Compress: React.FC = () => {
                           E-book Quality
                         </Box>
                       </MenuItem>
-                      <MenuItem value="printer">
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <PrintIcon sx={{ mr: 1 }} />
-                          Printer Quality
-                        </Box>
-                      </MenuItem>
-                      <MenuItem value="prepress">
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <HighQualityIcon sx={{ mr: 1 }} />
-                          Prepress Quality
-                        </Box>
-                      </MenuItem>
+                      {/* "Printer" and "Prepress" used to sit here. Measured
+                          against the benchmark corpus they returned the input
+                          byte-for-byte in 0.0s on every fixture - they routed
+                          to a worker path that does no compression at all.
+                          Offering a preset that does nothing is worse than
+                          offering fewer presets. */}
                     </Select>
                   </FormControl>
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
@@ -582,6 +614,15 @@ const Compress: React.FC = () => {
                   Compress More Files
                 </Button>
               </Box>
+
+              {state.results.some(result => result.metadata?.unchanged) && (
+                <Alert severity="info" sx={{ mb: 3 }}>
+                  Some of these were already as small as this tool can make them, so you are getting
+                  the original file back rather than a larger one. That is normal for PDFs exported
+                  from a word processor: there are no scanned images to re-encode, and the text is
+                  already compressed.
+                </Alert>
+              )}
 
               <List>
                 {state.results.map((result, index) => (

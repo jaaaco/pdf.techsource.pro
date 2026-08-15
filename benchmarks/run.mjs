@@ -49,7 +49,9 @@ const ONLY_FILE = argOf('file', null)
 /** Per-job ceiling. A 10-page 300 dpi scan is minutes of work, not seconds. */
 const JOB_TIMEOUT_MS = Number(argOf('timeout', '900000'))
 
-const COMPRESS_PRESETS = ['screen', 'ebook', 'printer', 'prepress']
+// 'printer' and 'prepress' were removed from the UI after the first run
+// showed them returning the input byte-for-byte in 0.0s on every fixture.
+const COMPRESS_PRESETS = ['screen', 'ebook']
 
 const bytesToMb = (bytes) => Number((bytes / 1024 / 1024).toFixed(3))
 
