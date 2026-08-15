@@ -1,6 +1,6 @@
 {
   "measuredAt": "2026-08-15",
-  "base": "http://localhost:4180",
+  "base": "https://pdf.techsource.pro",
   "chrome": "Chrome/151.0.7922.138",
   "results": [
     {
@@ -16,7 +16,7 @@
           "pagesLost": 0,
           "ratio": 0.0376,
           "savedPercent": 96.2,
-          "elapsedMs": 1013
+          "elapsedMs": 1012
         },
         {
           "preset": "ebook",
@@ -27,7 +27,7 @@
           "pagesLost": 0,
           "ratio": 0.1974,
           "savedPercent": 80.3,
-          "elapsedMs": 1012
+          "elapsedMs": 1011
         }
       ]
     },
@@ -38,24 +38,24 @@
         {
           "preset": "screen",
           "inputBytes": 649193,
-          "outputBytes": 87774,
+          "outputBytes": 87776,
           "inputPages": 5,
           "outputPages": 5,
           "pagesLost": 0,
           "ratio": 0.1352,
           "savedPercent": 86.5,
-          "elapsedMs": 1012
+          "elapsedMs": 1013
         },
         {
           "preset": "ebook",
           "inputBytes": 649193,
-          "outputBytes": 252758,
+          "outputBytes": 252760,
           "inputPages": 5,
           "outputPages": 5,
           "pagesLost": 0,
           "ratio": 0.3893,
           "savedPercent": 61.1,
-          "elapsedMs": 1015
+          "elapsedMs": 1012
         }
       ]
     },
@@ -83,7 +83,7 @@
           "pagesLost": 0,
           "ratio": 0.1194,
           "savedPercent": 88.1,
-          "elapsedMs": 2018
+          "elapsedMs": 2012
         }
       ]
     },
@@ -100,7 +100,7 @@
           "pagesLost": 0,
           "ratio": 0.0553,
           "savedPercent": 94.5,
-          "elapsedMs": 1011
+          "elapsedMs": 1010
         },
         {
           "preset": "ebook",
@@ -111,7 +111,7 @@
           "pagesLost": 0,
           "ratio": 0.15,
           "savedPercent": 85,
-          "elapsedMs": 1010
+          "elapsedMs": 1012
         }
       ]
     },
@@ -128,7 +128,7 @@
           "pagesLost": 0,
           "ratio": 1,
           "savedPercent": 0,
-          "elapsedMs": 1010
+          "elapsedMs": 1012
         },
         {
           "preset": "ebook",
@@ -139,7 +139,7 @@
           "pagesLost": 0,
           "ratio": 1,
           "savedPercent": 0,
-          "elapsedMs": 1012
+          "elapsedMs": 1011
         }
       ]
     }
