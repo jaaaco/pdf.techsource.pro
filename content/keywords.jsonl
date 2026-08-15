@@ -1746,7 +1746,7 @@
 {"phrase":"compress pdf offline linux","lang":"en","source":"google-suggest","intent":"privacy","firstSeen":"2026-08-15","status":"new"}
 {"phrase":"how to compress pdf in laptop offline","lang":"en","source":"google-suggest","intent":"how-to","firstSeen":"2026-08-15","status":"new"}
 {"phrase":"compress pdf without losing quality offline","lang":"en","source":"google-suggest","intent":"privacy","firstSeen":"2026-08-15","status":"new"}
-{"phrase":"compress pdf to 100kb free offline without losing","lang":"en","source":"google-suggest","intent":"privacy","firstSeen":"2026-08-15","status":"new"}
+{"phrase":"compress pdf to 100kb free offline without losing","lang":"en","source":"google-suggest","intent":"privacy","firstSeen":"2026-08-15","status":"published","slug":"compress-pdf-to-100kb-free-offline-without-losing","publishedAt":"2026-08-15"}
 {"phrase":"compress pdf offline open source","lang":"en","source":"google-suggest","intent":"privacy","firstSeen":"2026-08-15","status":"new"}
 {"phrase":"compress pdf offline on mac","lang":"en","source":"google-suggest","intent":"privacy","firstSeen":"2026-08-15","status":"new"}
 {"phrase":"compress pdf to 50kb offline online free","lang":"en","source":"google-suggest","intent":"privacy","firstSeen":"2026-08-15","status":"new"}
@@ -1990,3 +1990,8 @@
 {"phrase":"skan do pdf za darmo","lang":"pl","source":"duckduckgo","intent":"informational","firstSeen":"2026-08-15","status":"new"}
 {"phrase":"jak edytowac skan pdf","lang":"pl","source":"duckduckgo","intent":"how-to","firstSeen":"2026-08-15","status":"new"}
 {"phrase":"jak przerobić skan na pdf","lang":"pl","source":"duckduckgo","intent":"how-to","firstSeen":"2026-08-15","status":"new"}
+{"phrase":"compress pdf to 500 kb","lang":"en","source":"duckduckgo","intent":"informational","firstSeen":"2026-08-15","status":"new"}
+{"phrase":"can you compress a pdf","lang":"en","source":"duckduckgo","intent":"informational","firstSeen":"2026-08-15","status":"new"}
+{"phrase":"merge pdf 24","lang":"en","source":"duckduckgo","intent":"informational","firstSeen":"2026-08-15","status":"new"}
+{"phrase":"ocr pdf i love pdf","lang":"en","source":"duckduckgo","intent":"informational","firstSeen":"2026-08-15","status":"new"}
+{"phrase":"make scanned pdfs searchable editable","lang":"en","source":"duckduckgo","intent":"informational","firstSeen":"2026-08-15","status":"new"}
