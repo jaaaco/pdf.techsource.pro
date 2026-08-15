@@ -111,6 +111,24 @@ const newPage = async (route) => {
       if (source instanceof Blob) blobs.push(source)
       return original(source)
     }
+
+    // Tee the worker's own error payload. The page runs it through
+    // ErrorHandler before display, which replaces the real cause with a
+    // guess ("the PDF might be corrupted"), so the on-screen text alone
+    // cannot tell a broken fixture from a broken tool.
+    const errors = []
+    Object.defineProperty(window, '__benchWorkerErrors', { value: errors })
+    const NativeWorker = window.Worker
+    window.Worker = class extends NativeWorker {
+      constructor(...args) {
+        super(...args)
+        this.addEventListener('message', (event) => {
+          const data = event.data
+          if (data && data.type === 'error') errors.push(String(data.payload?.message ?? data.payload))
+        })
+        this.addEventListener('error', (event) => errors.push(`worker crashed: ${event.message}`))
+      }
+    }
   })
 
   await page.goto(`${BASE}${route}`, { waitUntil: 'networkidle2', timeout: 60000 })
@@ -163,12 +181,40 @@ const uploadFiles = async (page, paths) => {
  * Waits for the result panel, triggers the download, and pulls the produced
  * Blob straight out of the page. Written to a temp file so pdfjs can read it
  * back for the OCR text comparison.
+ *
+ * Polls for two outcomes rather than one. The original version only watched
+ * for success text, so a tool that failed in two seconds still burned the
+ * whole 15-minute ceiling before the run gave up, and reported it as a
+ * timeout. A failure is a result too - it just needs to be recorded as one.
  */
 const captureResult = async (page, startedAt) => {
-  await page.waitForFunction(
-    () => /complete|ready for download/i.test(document.body.innerText),
-    { timeout: JOB_TIMEOUT_MS, polling: 1000 },
-  )
+  const deadline = Date.now() + JOB_TIMEOUT_MS
+  let ready = false
+
+  while (Date.now() < deadline) {
+    const state = await page.evaluate(() => ({
+      // The download button is the unambiguous success signal. Matching on
+      // body text caught the progress bar's own "Complete" stage label a
+      // beat before the result panel existed.
+      ready: [...document.querySelectorAll('button')].some(
+        (element) => /download/i.test(element.textContent ?? '') && !element.disabled,
+      ),
+      failed: document.querySelector('.MuiAlert-standardError')?.textContent ?? null,
+      raw: window.__benchWorkerErrors.at(-1) ?? null,
+    }))
+
+    if (state.failed) {
+      const shown = state.failed.trim()
+      throw new Error(state.raw ? `${shown} [worker: ${state.raw}]` : shown)
+    }
+    if (state.ready) {
+      ready = true
+      break
+    }
+    await new Promise((done) => setTimeout(done, 1000))
+  }
+
+  if (!ready) throw new Error(`no result and no error after ${JOB_TIMEOUT_MS}ms`)
   const elapsedMs = Date.now() - startedAt
 
   await clickByText(page, /download/)
@@ -177,7 +223,7 @@ const captureResult = async (page, startedAt) => {
     polling: 250,
   })
 
-  const base64 = await page.evaluate(async () => {
+  const captured = await page.evaluate(async () => {
     const blob = window.__benchBlobs.at(-1)
     const buffer = new Uint8Array(await blob.arrayBuffer())
     let binary = ''
@@ -185,14 +231,18 @@ const captureResult = async (page, startedAt) => {
     for (let offset = 0; offset < buffer.length; offset += 0x8000) {
       binary += String.fromCharCode(...buffer.subarray(offset, offset + 0x8000))
     }
-    return btoa(binary)
+    return { base64: btoa(binary), mimeType: blob.type }
   })
 
-  const bytes = Buffer.from(base64, 'base64')
+  const bytes = Buffer.from(captured.base64, 'base64')
   const outputPath = join(downloadDir, `out-${Date.now()}.pdf`)
   await writeFile(outputPath, bytes)
 
-  return { elapsedMs, outputBytes: bytes.length, outputPath }
+  // The OCR page offers three output formats but the worker only implements
+  // two, so it can hand back a .txt while the UI says PDF. Recording the
+  // blob's own type is how that shows up in the results instead of as a
+  // confusing pdfjs parse error.
+  return { elapsedMs, outputBytes: bytes.length, outputPath, outputMimeType: captured.mimeType }
 }
 
 /* -------------------------------------------------------------- extraction */
@@ -319,31 +369,60 @@ const benchmarkOcr = async (file) => {
   if (!existsSync(truthPath)) return null
 
   const { size: inputBytes } = await stat(inputPath)
+  const inputPages = await countPages(inputPath)
   const page = await newPage('/ocr')
 
   try {
     await uploadFiles(page, [inputPath])
     const startedAt = Date.now()
-    await clickByText(page, /ocr|recognize|start/)
-    const { elapsedMs, outputBytes, outputPath } = await captureResult(page, startedAt)
+    await clickByText(page, /start ocr/)
+    const { elapsedMs, outputBytes, outputPath, outputMimeType } = await captureResult(
+      page,
+      startedAt,
+    )
 
+    // Same reasoning as compress: an OCR pass that quietly loses pages would
+    // otherwise post a respectable recall number on the pages it kept.
+    const outputPages = await countPages(outputPath).catch(() => null)
     const truth = await readFile(truthPath, 'utf8')
-    const actual = await extractText(outputPath)
+    const actual = await extractText(outputPath).catch(() => '')
     const recall = wordRecall(truth, actual)
 
+    const pageNote =
+      outputPages === null
+        ? '  UNREADABLE OUTPUT'
+        : outputPages === inputPages
+          ? ''
+          : `  PAGES ${inputPages}->${outputPages}`
     console.log(
       `    ocr      ${bytesToMb(inputBytes)} MB -> ${bytesToMb(outputBytes)} MB, ` +
-        `word recall ${(recall * 100).toFixed(1)}%, ${(elapsedMs / 1000).toFixed(1)}s`,
+        `word recall ${recall === null ? 'n/a' : `${(recall * 100).toFixed(1)}%`}, ` +
+        `${(elapsedMs / 1000).toFixed(1)}s${pageNote}`,
     )
 
     return {
       tool: 'ocr',
       file,
-      runs: [{ inputBytes, outputBytes, elapsedMs, wordRecall: recall }],
+      runs: [
+        {
+          inputBytes,
+          outputBytes,
+          inputPages,
+          outputPages,
+          pagesLost: outputPages === null ? null : inputPages - outputPages,
+          outputMimeType,
+          elapsedMs,
+          wordRecall: recall,
+        },
+      ],
     }
   } catch (error) {
     console.log(`    ocr      FAILED: ${error.message ?? error}`)
-    return { tool: 'ocr', file, runs: [{ inputBytes, error: String(error.message ?? error) }] }
+    return {
+      tool: 'ocr',
+      file,
+      runs: [{ inputBytes, inputPages, error: String(error.message ?? error) }],
+    }
   } finally {
     await page.close()
   }
@@ -371,6 +450,20 @@ const chromeVersion = await browser.version().catch(() => null)
 await browser.close()
 await rm(downloadDir, { recursive: true, force: true })
 
+/**
+ * Merge rather than overwrite.
+ *
+ * A `--only=ocr` run used to replace the whole file, silently destroying the
+ * recorded compress numbers - which is also what the published benchmark page
+ * is generated from. Entries are keyed by tool and file, so a partial run
+ * updates exactly what it measured and leaves the rest of the record alone.
+ */
+const previous = existsSync(RESULTS) ? JSON.parse(await readFile(RESULTS, 'utf8')) : { results: [] }
+const merged = new Map(
+  (previous.results ?? []).map((entry) => [`${entry.tool}:${entry.file}`, entry]),
+)
+for (const entry of results) merged.set(`${entry.tool}:${entry.file}`, entry)
+
 await mkdir(dirname(RESULTS), { recursive: true })
 await writeFile(
   RESULTS,
@@ -381,7 +474,9 @@ await writeFile(
       measuredAt: process.env.BENCH_DATE ?? new Date().toISOString().slice(0, 10),
       base: BASE,
       chrome: chromeVersion,
-      results,
+      results: [...merged.values()].sort((a, b) =>
+        `${a.tool}:${a.file}`.localeCompare(`${b.tool}:${b.file}`),
+      ),
     },
     null,
     2,

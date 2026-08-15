@@ -142,6 +142,44 @@
           "elapsedMs": 1011
         }
       ]
+    },
+    {
+      "tool": "ocr",
+      "file": "scan-150dpi-5p.pdf",
+      "runs": [
+        {
+          "inputBytes": 649193,
+          "outputBytes": 648439,
+          "inputPages": 5,
+          "outputPages": 5,
+          "pagesLost": 0,
+          "outputMimeType": "application/pdf",
+          "elapsedMs": 4022,
+          "wordRecall": 0
+        }
+      ]
+    },
+    {
+      "tool": "ocr",
+      "file": "scan-300dpi-10p.pdf",
+      "runs": [
+        {
+          "inputBytes": 4136509,
+          "inputPages": 10,
+          "error": "There's a problem with the PDF file. It might be corrupted or in an unsupported format. [worker: There's a problem with the PDF file \"scan-300dpi-10p.pdf\". It might be corrupted or in an unsupported format. (Raw: Failed to process page 1: TypeError: Cannot read properties of undefined (reading 'createElement'))]"
+        }
+      ]
+    },
+    {
+      "tool": "ocr",
+      "file": "scan-clean-300dpi-3p.pdf",
+      "runs": [
+        {
+          "inputBytes": 971666,
+          "inputPages": 3,
+          "error": "There's a problem with the PDF file. It might be corrupted or in an unsupported format. [worker: There's a problem with the PDF file \"scan-clean-300dpi-3p.pdf\". It might be corrupted or in an unsupported format. (Raw: Failed to process page 1: TypeError: Cannot read properties of undefined (reading 'createElement'))]"
+        }
+      ]
     }
   ]
 }
