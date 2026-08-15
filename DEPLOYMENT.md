@@ -103,15 +103,10 @@ docker run -p 80:80 \
    - Configure headers for WASM support
 
 ### Azure Static Web Apps
-1. **GitHub Actions** (automatic):
-   - Connect repository to Azure Static Web Apps
-   - Uses `.github/workflows/deploy.yml` automatically
-
-2. **Manual deployment**:
-   ```bash
-   npm run build
-   az storage blob upload-batch -s dist -d '$web' --account-name yourstorageaccount
-   ```
+```bash
+npm run build
+az storage blob upload-batch -s dist -d '$web' --account-name yourstorageaccount
+```
 
 ## 🔒 Security Configuration
 
@@ -172,12 +167,9 @@ npm run preview
 docker-compose up
 ```
 
-### Lighthouse CI
-```bash
-# Run performance tests
-npm install -g @lhci/cli
-lhci autorun
-```
+### Lighthouse
+Netlify runs the Lighthouse plugin on production deploys — thresholds are in
+the `[[context.production.plugins]]` block in `netlify.toml`.
 
 ### Load Testing
 ```bash
@@ -256,18 +248,21 @@ ls -la dist/
 
 ## 🔄 CI/CD Pipeline
 
-The included GitHub Actions workflow:
-1. **Builds** on Node.js 18 and 20
-2. **Tests** all functionality
-3. **Deploys** to Netlify and Cloudflare Pages
-4. **Monitors** with Lighthouse CI
+**Production deploys come from Netlify's own git integration.** Pushing to
+`main` triggers a Netlify build that runs `npm run build` and publishes `dist`.
+There is nothing else in the loop.
 
-### Manual Triggers
-```bash
-# Trigger deployment
-git tag v1.0.0
-git push origin v1.0.0
-```
+There used to be a `.github/workflows/deploy.yml` on top of that. It was
+removed: across 18 runs it never once succeeded, it always died before the
+build step, and its deploy jobs never executed as a result — so every
+production deploy that has ever happened came from Netlify regardless. It also
+carried a Cloudflare Pages job pointing at a project that does not exist and a
+Lighthouse job auditing `pdf-toolkit.netlify.app` rather than this domain.
+
+Before reintroducing CI, note that `npm run test` is currently red
+independently of any of this — see TODO.md. A workflow that gates on it will
+gate on nothing but its own failure. `npm run lint`, `npm run type-check` and
+`npm run build` all pass and are the useful checks to run.
 
 ## 📞 Support
 
