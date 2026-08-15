@@ -76,6 +76,27 @@ if (corpusFiles.length === 0) {
   process.exit(1)
 }
 
+const previous = existsSync(RESULTS) ? JSON.parse(await readFile(RESULTS, 'utf8')) : { results: [] }
+
+/**
+ * Refuse to mix origins, and check it before measuring anything rather than
+ * after.
+ *
+ * This file is the source the published benchmark page is generated from, so
+ * a local run merging into a production record silently republishes numbers
+ * from a build nobody can reach. It has already happened once: a stale
+ * localhost job finished after a production run and overwrote one row with a
+ * pre-fix measurement. Same base, or start a fresh file.
+ */
+if (previous.base && previous.base !== BASE && !hasFlag('force')) {
+  console.error(
+    `[bench] results.json was measured against ${previous.base}, this run targets ${BASE}.\n` +
+      '        Merging would mix origins in a published record. Re-run everything against one\n' +
+      '        base, or pass --force if that is genuinely what you want.',
+  )
+  process.exit(1)
+}
+
 const browser = await puppeteer.launch({
   executablePath: CHROME,
   headless: !hasFlag('headful'),
@@ -458,7 +479,6 @@ await rm(downloadDir, { recursive: true, force: true })
  * is generated from. Entries are keyed by tool and file, so a partial run
  * updates exactly what it measured and leaves the rest of the record alone.
  */
-const previous = existsSync(RESULTS) ? JSON.parse(await readFile(RESULTS, 'utf8')) : { results: [] }
 const merged = new Map(
   (previous.results ?? []).map((entry) => [`${entry.tool}:${entry.file}`, entry]),
 )
