@@ -110,9 +110,16 @@ for (const entry of results.results) {
       const percent = Math.abs(item.savedPercent)
       allowedNumbers.add(percent.toFixed(1))
       allowedNumbers.add(String(Math.round(percent)))
+      // Sizes are given in both units on purpose. Handed only megabytes, a
+      // model rounds 0.016 MB to "0.02 MB" and then confidently converts that
+      // to "20 KB" in prose - which is how a 16 KB file got published as 20 KB.
+      // The percentage guard below cannot catch that, so remove the need to
+      // convert at all.
       measuredLines.push(
-        `${entry.file}, ${item.preset} preset: ${(item.inputBytes / 1048576).toFixed(2)} MB -> ` +
-          `${(item.outputBytes / 1048576).toFixed(2)} MB (${item.savedPercent > 0 ? '-' : '+'}${percent}%), ` +
+        `${entry.file}, ${item.preset} preset: ` +
+          `${(item.inputBytes / 1048576).toFixed(2)} MB (${Math.round(item.inputBytes / 1024)} KB) -> ` +
+          `${(item.outputBytes / 1048576).toFixed(2)} MB (${Math.round(item.outputBytes / 1024)} KB) ` +
+          `(${item.savedPercent > 0 ? '-' : '+'}${percent}%), ` +
           `${(item.elapsedMs / 1000).toFixed(1)}s, pages ${item.inputPages} -> ${item.outputPages}`,
       )
     }
@@ -146,6 +153,7 @@ ${measuredLines.join('\n')}
 
 HARD RULES
 - Never invent a number. If you state a percentage, a file size or a timing, it must come from the measured data above. If you have no measurement for a claim, describe it qualitatively instead.
+- Quote sizes in the units given above. Do not convert between MB and KB yourself: a rounded megabyte figure converted back to kilobytes stops being the measurement.
 - Do not write "up to X%" marketing phrasing. That is the exact claim this site exists to contradict.
 - The reader has a real job to do. Answer it concretely and early. If the honest answer is "this tool cannot do that", say so and explain what does.
 - No filler, no "in today's digital world", no restating the title as a first sentence.

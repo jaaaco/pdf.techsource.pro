@@ -16,7 +16,7 @@ Whether a PDF reaches 100 KB depends almost entirely on what is inside it. Here 
 | scan-150dpi-5p.pdf | 0.62 MB | 0.08 MB | −86.5% | yes |
 | photo-3p.pdf | 4.21 MB | 0.16 MB | −96.2% | no |
 | scan-300dpi-10p.pdf | 3.94 MB | 0.17 MB | −95.8% | no |
-| text-native-20p.pdf | 0.02 MB | 0.02 MB | +0% | it started at 20 KB |
+| text-native-20p.pdf | 16 KB | 16 KB | +0% | it started under it |
 
 Two of the four image-heavy files landed under 100 KB. Two landed at 160 KB and 170 KB — a 96% reduction that still misses the target, because page count and photographic detail set a floor the preset cannot go below. The native text file came back byte-for-byte the same size, which is the correct outcome and explained below.
 
@@ -26,7 +26,7 @@ Each run took 1.0 second, except the 10-page scan at 2.0 seconds.
 
 Compression here works by re-rendering every page as an image and rebuilding the PDF around those images. For a scan, that is exactly the right move: a scan is already a picture of a page, usually stored at a resolution far higher than screen reading needs. Re-rendering it at a lower resolution throws away detail nobody was going to look at.
 
-A PDF exported from a word processor is not a picture. It is drawing instructions plus an embedded font. Those instructions are already tiny — 20 KB for 20 pages, in the file above — and turning them into images would make the file *bigger* and the text unselectable. So the tool leaves them alone. If your PDF is already vector text and you were hoping to shrink it, there is nothing to shrink. That is not a limitation to work around; it is the file telling you it is done.
+A PDF exported from a word processor is not a picture. It is drawing instructions plus an embedded font. Those instructions are already tiny — 16 KB for 20 pages, in the file above — and turning them into images would make the file *bigger* and the text unselectable. So the tool leaves them alone. If your PDF is already vector text and you were hoping to shrink it, there is nothing to shrink. That is not a limitation to work around; it is the file telling you it is done.
 
 The quick test: open the PDF and try to select a sentence with your cursor. If the text highlights word by word, it is native text and compression will not help. If you can only draw a box over it, it is a scan and compression will.
 
