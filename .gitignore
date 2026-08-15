@@ -31,3 +31,5 @@ public/wasm-files/*.wasm
 public/tesseract-data/*.traineddata
 
 .lighthouseci
+# Benchmark corpus is generated, not committed
+benchmarks/corpus/
