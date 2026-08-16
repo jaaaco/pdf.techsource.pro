@@ -42,6 +42,7 @@ import {
 } from '@mui/icons-material'
 import Footer from '@/components/Footer'
 import SeoSection from '@/components/SeoSection'
+import RelatedGuides from '@/components/RelatedGuides'
 import { getRoute } from '@/seo/manifest'
 import useDocumentMeta from '@/seo/useDocumentMeta'
 
@@ -438,6 +439,7 @@ const Dashboard: React.FC = () => {
         </Paper>
 
         <SeoSection route={route} />
+        <RelatedGuides limit={3} />
       </Container>
 
       <Footer />

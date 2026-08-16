@@ -37,6 +37,7 @@ import {
 import Layout from '@/components/Layout';
 import ToolHero from '@/components/ToolHero';
 import SeoSection from '@/components/SeoSection';
+import RelatedGuides from '@/components/RelatedGuides';
 import Footer from '@/components/Footer';
 import { getRoute } from '@/seo/manifest';
 import useDocumentMeta from '@/seo/useDocumentMeta';
@@ -557,6 +558,7 @@ const Split: React.FC = () => {
           </Card>
         )}
         <SeoSection route={route} />
+        <RelatedGuides tag="split" limit={2} />
       </Box>
     </Layout>
     <Footer />

@@ -224,6 +224,26 @@ const buildStructuredData = (page) => {
 
 const NAV = routes.filter((route) => route.locale === site.defaultLocale)
 
+/**
+ * Article links for a route page, mirroring RelatedGuides on the React side.
+ *
+ * Without these the only path to an article in the static HTML was the footer
+ * link to /blog - and the prerendered /blog page listed nothing at all, so a
+ * crawler following it found a dead end. Tool pages link to articles tagged
+ * for that tool, everything else gets the newest.
+ */
+const guidesFor = (page) => {
+  if (page.type === 'article') return []
+
+  const localeArticles = articles.filter((article) => article.locale === page.locale)
+  if (localeArticles.length === 0) return []
+
+  if (page.id === 'blog') return localeArticles
+
+  const tagged = localeArticles.filter((article) => article.tags.includes(page.id))
+  return (tagged.length > 0 ? tagged : localeArticles).slice(0, 3)
+}
+
 const buildBody = (page) => {
   const sections = [`<h1>${escapeHtml(page.h1)}</h1>`]
 
@@ -240,6 +260,21 @@ const buildBody = (page) => {
     for (const entry of page.faq) {
       sections.push(`<h3>${escapeHtml(entry.q)}</h3><p>${escapeHtml(entry.a)}</p>`)
     }
+  }
+
+  const guides = guidesFor(page)
+  if (guides.length > 0) {
+    sections.push('<h2>Guides and benchmarks</h2>')
+    sections.push(
+      `<ul>${guides
+        .map(
+          (guide) =>
+            `<li><a href="${guide.path}">${escapeHtml(guide.title)}</a>` +
+            (guide.description ? ` - ${escapeHtml(guide.description)}` : '') +
+            '</li>',
+        )
+        .join('')}</ul>`,
+    )
   }
 
   const nav = NAV.filter((route) => route.path !== page.path)
