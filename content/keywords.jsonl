@@ -1764,7 +1764,7 @@
 {"phrase":"compress pdf to 300kb offline","lang":"en","source":"google-suggest","intent":"privacy","firstSeen":"2026-08-15","status":"new"}
 {"phrase":"compress pdf offline ubuntu","lang":"en","source":"google-suggest","intent":"privacy","firstSeen":"2026-08-15","status":"new"}
 {"phrase":"compress pdf offline windows 7","lang":"en","source":"google-suggest","intent":"privacy","firstSeen":"2026-08-15","status":"new"}
-{"phrase":"compress pdf to 500kb online free offline without losing","lang":"en","source":"google-suggest","intent":"privacy","firstSeen":"2026-08-15","status":"new"}
+{"phrase":"compress pdf to 500kb online free offline without losing","lang":"en","source":"google-suggest","intent":"privacy","firstSeen":"2026-08-15","status":"published","slug":"compress-pdf-to-500kb-online-free-offline-without-losing","publishedAt":"2026-08-17"}
 {"phrase":"edit pdf without uploading","lang":"en","source":"google-suggest","intent":"privacy","firstSeen":"2026-08-15","status":"new"}
 {"phrase":"can you edit a pdf without acrobat","lang":"en","source":"google-suggest","intent":"privacy","firstSeen":"2026-08-15","status":"new"}
 {"phrase":"is there a way to edit a pdf without acrobat","lang":"en","source":"google-suggest","intent":"privacy","firstSeen":"2026-08-15","status":"new"}
@@ -1995,3 +1995,10 @@
 {"phrase":"merge pdf 24","lang":"en","source":"duckduckgo","intent":"informational","firstSeen":"2026-08-15","status":"new"}
 {"phrase":"ocr pdf i love pdf","lang":"en","source":"duckduckgo","intent":"informational","firstSeen":"2026-08-15","status":"new"}
 {"phrase":"make scanned pdfs searchable editable","lang":"en","source":"duckduckgo","intent":"informational","firstSeen":"2026-08-15","status":"new"}
+{"phrase":"merge pdf i love","lang":"en","source":"duckduckgo","intent":"informational","firstSeen":"2026-08-17","status":"new"}
+{"phrase":"split pdf 2go","lang":"en","source":"duckduckgo","intent":"informational","firstSeen":"2026-08-17","status":"new"}
+{"phrase":"split pdf 24 tools","lang":"en","source":"duckduckgo","intent":"informational","firstSeen":"2026-08-17","status":"new"}
+{"phrase":"split pdf for free","lang":"en","source":"duckduckgo","intent":"tool","firstSeen":"2026-08-17","status":"new"}
+{"phrase":"how to edit pdf document without adobe","lang":"en","source":"duckduckgo","intent":"how-to","firstSeen":"2026-08-17","status":"new"}
+{"phrase":"upload and edit a pdf","lang":"en","source":"duckduckgo","intent":"informational","firstSeen":"2026-08-17","status":"new"}
+{"phrase":"polacz pliki pdf adobe","lang":"pl","source":"duckduckgo","intent":"informational","firstSeen":"2026-08-17","status":"new"}
