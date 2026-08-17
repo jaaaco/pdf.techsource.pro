@@ -1,55 +1,37 @@
 /*
  * Global stylesheet.
  *
- * This used to be the untouched Vite starter CSS, which fought the MUI theme
- * on every point that matters for a content site:
+ * Almost nothing lives here any more. The reset, the type scale, the palette
+ * and every component class moved to styles/modernist.css when the site was
+ * rebuilt on the Modernist design system; what is left is the styling for the
+ * *prerendered* block - the static HTML that scripts/prerender.mjs writes into
+ * #root and that React replaces on hydration.
  *
- *   #root { text-align: center }  centred every paragraph, including the
- *                                 privacy policy and the articles
- *   #root { max-width; padding }  a second layout container underneath MUI's
- *                                 <Container>, so everything was double-padded
- *   body  { display: flex;
- *           place-items: center }  vertically centred the whole app
- *   :root { color: white on #242424 }  light text on a dark background, which
- *                                 is what the prerendered HTML renders as
- *                                 before emotion injects the theme - a dark
- *                                 flash for everyone and unreadable text for
- *                                 anyone without JavaScript
- *   h1    { font-size: 3.2em }    overrode the typography scale
- *
- * MUI's CssBaseline handles the reset, the typography and the themed
- * background. What is left here is only what CssBaseline cannot know.
+ * That block is what a crawler and a no-JS visitor see, so it has to be
+ * readable on its own, in both colour schemes, before a single line of
+ * application CSS applies to it.
  */
 
-:root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  color-scheme: light dark;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
+[data-prerendered] {
+  max-width: var(--reading-max);
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  color: var(--color-text);
 }
 
-/*
- * Painted before the JS-injected theme arrives, so that the prerendered HTML
- * is readable on its own. CssBaseline takes over once React mounts.
- */
-html {
-  background-color: #fafafa;
-  color: #1f2937;
+[data-prerendered] h1,
+[data-prerendered] h2,
+[data-prerendered] h3 {
+  font-family: var(--font-heading);
+  font-weight: 800;
 }
 
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
+[data-prerendered] a {
+  color: var(--color-accent);
 }
 
-/* Links in the prerendered block, before MUI styles them. */
-a {
-  color: #1976d2;
+[data-prerendered] nav ul {
+  padding-left: var(--space-6);
 }

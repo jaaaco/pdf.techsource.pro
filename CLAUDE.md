@@ -65,7 +65,17 @@ The application follows a **hub-and-spoke architecture**:
 
 ```
 src/
-├── components/          # Shared React components (FileDropzone, ProgressBar, etc.)
+├── components/          # Shared React components
+│   ├── AppShell.tsx     # nav, bottom tab bar, footer - every page sits in it
+│   ├── FileDropzone.tsx # drag-and-drop + validation, used by all four tools
+│   ├── ProgressBar.tsx  # the big percentage during a run
+│   ├── DownloadButton.tsx # the results block for every tool
+│   └── icons.tsx        # inline SVG icon set
+├── styles/
+│   └── modernist.css    # design tokens + every component class
+├── theme/
+│   ├── mode.tsx         # ThemeModeProvider (light/dark/system)
+│   └── theme-mode.ts    # storage, types, useThemeMode
 ├── workers/            # Web Worker implementations
 │   ├── compress-worker.ts
 │   ├── merge-worker.ts
@@ -297,10 +307,30 @@ try {
 - Tesseract WASM: Apache license
 - Attribution required: see `ATTRIBUTION.md` and `/attribution` route
 
-### Material-UI Theme
-- Custom theme defined in `src/theme/index.ts`
-- Uses Emotion for styling
-- CssBaseline applied globally in `App.tsx`
+### Design system
+
+The UI is built on **Modernist**, exported from the Claude Design project
+"PDF Toolkit Refresh" and ported into `src/styles/modernist.css`. Material-UI
+and Emotion were removed with that change - there is no component library,
+only design tokens plus plain CSS classes on semantic HTML.
+
+- **Tokens** live in `:root` in `src/styles/modernist.css`: one accent, zero
+  corner radius, 2px rules instead of shadows, Archivo for everything.
+- **Dark mode** is a token swap. `data-theme` on `<html>` (set by the toggle,
+  persisted in `localStorage`) wins; otherwise `prefers-color-scheme` decides.
+  The provider is `src/theme/mode.tsx`, the storage and hook are in
+  `src/theme/theme-mode.ts`, and an inline script in `index.html` applies the
+  stored choice before first paint - keep it in sync with `THEME_BOOTSTRAP`.
+- **Fonts** are self-hosted (`@fontsource/archivo`, imported in `main.tsx`).
+  Not Google Fonts: a font request per page load is a network call this site
+  otherwise never makes, and an offline visitor would get a different face.
+- **Icons** are inline SVG in `src/components/icons.tsx` - `currentColor`, so
+  they follow the theme without a prop.
+- **Chrome** is `src/components/AppShell.tsx`: desktop nav rail, mobile bottom
+  tab bar, and a back-and-title bar on tool pages. Every page renders inside it.
+
+When editing CSS: comments cannot contain `*/`. One did, in a path glob, and
+it silently truncated the whole token block.
 
 ### Deployment
 - Static hosting compatible (Netlify, Cloudflare Pages)

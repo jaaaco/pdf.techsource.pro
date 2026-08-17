@@ -12,10 +12,9 @@
  */
 
 import React from 'react'
-import { Link as RouterLink } from 'react-router-dom'
-import { Box, Card, CardActionArea, CardContent, Link, Stack, Typography } from '@mui/material'
-import { ArrowForward as ArrowIcon } from '@mui/icons-material'
+import { Link } from 'react-router-dom'
 import { articlesForLocale, type Article } from '@/seo/manifest'
+import { ArrowRightIcon, ChevronRightIcon } from './icons'
 
 interface RelatedGuidesProps {
   /** Restrict to articles carrying this tag. Omit for the newest of anything. */
@@ -43,40 +42,33 @@ const RelatedGuides: React.FC<RelatedGuidesProps> = ({
   if (guides.length === 0) return null
 
   return (
-    <Box component="section" sx={{ mt: 6 }}>
-      <Stack direction="row" alignItems="baseline" justifyContent="space-between" sx={{ mb: 2 }}>
-        <Typography variant="h5" component="h2" fontWeight={700}>
-          {title}
-        </Typography>
-        <Link
-          component={RouterLink}
-          to="/blog"
-          variant="body2"
-          sx={{ display: 'flex', alignItems: 'center', gap: 0.5, whiteSpace: 'nowrap' }}
-        >
-          All guides <ArrowIcon fontSize="inherit" />
+    <section className="section section-ruled">
+      <div className="spread" style={{ marginBottom: 'var(--space-3)' }}>
+        <h2 style={{ margin: 0 }}>{title}</h2>
+        <Link to="/blog" className="btn btn-ghost">
+          All guides
+          <ArrowRightIcon size={16} />
         </Link>
-      </Stack>
+      </div>
 
-      <Stack spacing={2}>
+      <div className="article-list">
         {guides.map((guide) => (
-          <Card key={guide.slug} variant="outlined">
-            <CardActionArea component={RouterLink} to={guide.path}>
-              <CardContent>
-                <Typography variant="subtitle1" component="h3" fontWeight={600} gutterBottom>
-                  {guide.title}
-                </Typography>
+          <Link key={guide.slug} to={guide.path} className="article-item">
+            <div className="spread">
+              <div className="grow">
+                <div className="article-title">{guide.title}</div>
                 {guide.description && (
-                  <Typography variant="body2" color="text.secondary">
+                  <p className="text-muted" style={{ margin: '6px 0 0', fontSize: 13 }}>
                     {guide.description}
-                  </Typography>
+                  </p>
                 )}
-              </CardContent>
-            </CardActionArea>
-          </Card>
+              </div>
+              <ChevronRightIcon size={18} />
+            </div>
+          </Link>
         ))}
-      </Stack>
-    </Box>
+      </div>
+    </section>
   )
 }
 

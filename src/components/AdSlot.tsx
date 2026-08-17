@@ -13,7 +13,6 @@
  */
 
 import React, { useEffect, useRef } from 'react'
-import { Box } from '@mui/material'
 
 const SCRIPT_SRC = 'https://media.ethicalads.io/media/client/ethicalads.min.js'
 const SCRIPT_ID = 'ethicalads-client'
@@ -50,14 +49,14 @@ const AdSlot: React.FC<AdSlotProps> = ({ variant = 'text' }) => {
   if (!publisher) return null
 
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+    <div style={{ display: 'flex', justifyContent: 'center', margin: 'var(--space-8) 0' }}>
       <div
         ref={container}
         className="horizontal"
         data-ea-publisher={publisher}
         data-ea-type={variant}
       />
-    </Box>
+    </div>
   )
 }
 

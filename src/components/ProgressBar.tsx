@@ -1,36 +1,43 @@
 /**
- * ProgressBar Component - Real-time progress display with cancel functionality
- * Validates: Requirements 2.1, 2.5, 8.4
+ * ProgressBar Component - Real-time progress display with cancel
+ *
+ * The percentage is the loudest thing on the screen because it is the only
+ * thing a visitor waiting on a 200-page OCR run actually wants. Stage and
+ * message sit around it, the track underneath, cancel below that.
+ *
+ * Two changes from the version this replaces, both deliberate:
+ *
+ *   - The displayed value is seeded from the incoming percentage instead of
+ *     animating up from zero on mount. The old one rendered "0%" for a frame
+ *     every time a task started, which reads as a stall.
+ *   - The `variant` prop is gone. It mapped to MUI's four palette colours;
+ *     this design system has one accent, and a green progress bar on a page
+ *     with no green anywhere else was never a deliberate choice.
  */
 
-import React, { useEffect, useState } from 'react';
-import {
-  Box,
-  LinearProgress,
-  Typography,
-  Button,
-  Paper,
-  Chip,
-  IconButton,
-  Collapse,
-  Alert,
-} from '@mui/material';
-import {
-  Cancel as CancelIcon,
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
-} from '@mui/icons-material';
+import React, { useEffect, useRef, useState } from 'react';
 import { ProgressUpdate } from '@/workers/shared/progress-protocol';
+import { CloseIcon } from './icons';
 
 export interface ProgressBarProps {
   progress: ProgressUpdate | null;
   onCancel?: () => void;
   showCancel?: boolean;
+  /** Shows the "5 of 10" step counter next to the percentage. */
   showDetails?: boolean;
   className?: string;
   size?: 'small' | 'medium' | 'large';
-  variant?: 'default' | 'success' | 'warning' | 'error';
 }
+
+const clamp = (value: number) => Math.min(100, Math.max(0, value));
+
+const TRACK_HEIGHT = { small: 6, medium: 10, large: 14 } as const;
+
+const formatSeconds = (seconds: number): string => {
+  if (seconds < 60) return `~${Math.max(1, Math.round(seconds))}s left`;
+  const minutes = Math.floor(seconds / 60);
+  return `~${minutes}m ${Math.round(seconds % 60)}s left`;
+};
 
 const ProgressBar: React.FC<ProgressBarProps> = ({
   progress,
@@ -39,169 +46,126 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
   showDetails = true,
   className = '',
   size = 'medium',
-  variant = 'default'
 }) => {
-  const [animatedProgress, setAnimatedProgress] = useState(0);
-  const [isVisible, setIsVisible] = useState(false);
-  const [showMoreDetails, setShowMoreDetails] = useState(false);
+  const target = clamp(progress?.percentage ?? 0);
+  const [displayed, setDisplayed] = useState(target);
+  const frame = useRef<number>();
+  /**
+   * Anchor for the time estimate: the first sample of this run. Extrapolating
+   * from it is crude, but a job that reports pages is close enough to linear
+   * for the number to be useful, and "~40s left" is the thing a person waiting
+   * actually wants to know.
+   */
+  const anchor = useRef<{ time: number; percent: number } | null>(null);
+  // Mirrors `displayed` so the animation can read where it is starting from
+  // without listing it as a dependency, which would restart it every frame.
+  const displayedRef = useRef(target);
+  displayedRef.current = displayed;
 
-  // Animate progress changes
   useEffect(() => {
-    if (progress) {
-      setIsVisible(true);
-      const targetProgress = progress.percentage || 0;
-      
-      // Smooth animation
-      const startProgress = animatedProgress;
-      const progressDiff = targetProgress - startProgress;
-      const duration = 300; // ms
-      const startTime = Date.now();
+    const from = displayedRef.current;
 
-      const animate = () => {
-        const elapsed = Date.now() - startTime;
-        const progressRatio = Math.min(elapsed / duration, 1);
-        
-        // Easing function for smooth animation
-        const easeOutQuart = 1 - Math.pow(1 - progressRatio, 4);
-        const currentProgress = startProgress + (progressDiff * easeOutQuart);
-        
-        setAnimatedProgress(currentProgress);
-        
-        if (progressRatio < 1) {
-          requestAnimationFrame(animate);
-        }
-      };
-
-      requestAnimationFrame(animate);
-    } else {
-      setIsVisible(false);
-      setAnimatedProgress(0);
+    // A jump under a percent arrives faster than the eye resolves it, so it
+    // is not worth a frame loop.
+    if (typeof requestAnimationFrame !== 'function' || Math.abs(target - from) < 1) {
+      setDisplayed(target);
+      return;
     }
-  }, [progress, animatedProgress]);
 
-  if (!isVisible || !progress) {
+    const start = performance.now();
+    const distance = target - from;
+    const duration = 300;
+
+    // The elapsed time is read here rather than taken from the frame
+    // callback's argument: some environments (jsdom's shimmed rAF among them)
+    // invoke the callback with no timestamp, which turns the whole
+    // calculation into NaN.
+    const step = () => {
+      const ratio = Math.min((performance.now() - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - ratio, 4);
+      setDisplayed(from + distance * eased);
+      if (ratio < 1) frame.current = requestAnimationFrame(step);
+    };
+
+    frame.current = requestAnimationFrame(step);
+    return () => {
+      if (frame.current) cancelAnimationFrame(frame.current);
+    };
+  }, [target]);
+
+  // A run that restarts, or one that has not been seen yet, resets the anchor.
+  if (!anchor.current || target < anchor.current.percent) {
+    anchor.current = { time: performance.now(), percent: target };
+  }
+
+  if (!progress) {
+    anchor.current = null;
     return null;
   }
 
-  // Get variant colors for MUI
-  const getVariantColor = () => {
-    switch (variant) {
-      case 'success': return 'success';
-      case 'warning': return 'warning';
-      case 'error': return 'error';
-      default: return 'primary';
-    }
-  };
+  const rounded = Math.round(displayed);
 
-  const getVariantSeverity = () => {
-    switch (variant) {
-      case 'success': return 'success';
-      case 'warning': return 'warning';
-      case 'error': return 'error';
-      default: return 'info';
-    }
-  };
+  const elapsed = performance.now() - anchor.current.time;
+  const advanced = target - anchor.current.percent;
+  const remaining =
+    // Below a couple of seconds and a couple of percent the extrapolation is
+    // noise, and a number that jumps between "2s" and "4m" is worse than none.
+    elapsed > 2000 && advanced >= 2 && target < 100
+      ? ((elapsed / advanced) * (100 - target)) / 1000
+      : null;
 
   return (
-    <Paper 
-      elevation={2}
-      sx={{ 
-        p: 3, 
-        mb: 2,
-        borderRadius: 2,
-        backgroundColor: 'background.paper'
-      }}
-      className={className}
-    >
-      {/* Header with stage and cancel button */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Chip 
-            label={progress.stage} 
-            color={getVariantColor()}
-            size="small"
-            sx={{ fontWeight: 600 }}
-          />
-          <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-            {Math.round(animatedProgress)}%
-          </Typography>
-        </Box>
-        
-        {showCancel && onCancel && (
-          <Button
-            variant="outlined"
-            color="error"
-            size="small"
-            startIcon={<CancelIcon />}
-            onClick={onCancel}
-            sx={{ minWidth: 'auto' }}
+    <section className={`section-tight section-ruled ${className}`.trim()} aria-live="polite">
+      {/* One uppercase line - "PROCESSING - RENDERING PAGE 4/10" - rather than
+          a chip plus a sentence, which is how the design sets it. */}
+      <h2 className="label progress-stage">
+        {progress.stage}
+        {progress.message && <span className="progress-stage-detail"> - {progress.message}</span>}
+      </h2>
+
+      <div className="progress-head">
+        {/* Number and sign are separate elements because they are set at
+            different sizes; the wrapper keeps them one string for anything
+            reading the value rather than the layout. */}
+        <span className="progress-value">
+          <span className="progress-number">{rounded}</span>
+          <span className="progress-percent">%</span>
+        </span>
+        {remaining !== null ? (
+          <span
+            className="text-muted"
+            style={{ marginLeft: 'auto', fontSize: 12, paddingBottom: 6 }}
           >
-            Cancel
-          </Button>
+            {formatSeconds(remaining)}
+          </span>
+        ) : (
+          showDetails &&
+          progress.total > 0 && (
+            <span
+              className="text-muted"
+              style={{ marginLeft: 'auto', fontSize: 12, paddingBottom: 6 }}
+            >
+              {progress.current} of {progress.total}
+            </span>
+          )
         )}
-      </Box>
+      </div>
 
-      {/* Progress message */}
-      {progress.message && (
-        <Alert 
-          severity={getVariantSeverity()} 
-          sx={{ mb: 2, '& .MuiAlert-message': { width: '100%' } }}
-        >
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="body2">
-              {progress.message}
-            </Typography>
-            {showDetails && (
-              <IconButton
-                size="small"
-                onClick={() => setShowMoreDetails(!showMoreDetails)}
-                sx={{ ml: 1 }}
-              >
-                {showMoreDetails ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-              </IconButton>
-            )}
-          </Box>
-        </Alert>
+      {/* The number above already announces the percentage, so the meter is
+          hidden rather than announcing it a second time. */}
+      <div className="progress-track" style={{ height: TRACK_HEIGHT[size] }} aria-hidden="true">
+        <div className="progress-fill" style={{ width: `${clamp(displayed)}%` }} />
+      </div>
+
+      {showCancel && onCancel && (
+        <div className="progress-actions">
+          <button type="button" className="btn btn-secondary" onClick={onCancel}>
+            <CloseIcon size={16} />
+            Cancel
+          </button>
+        </div>
       )}
-
-      {/* Progress bar */}
-      <Box sx={{ mb: 2 }}>
-        <LinearProgress
-          variant="determinate"
-          value={animatedProgress}
-          color={getVariantColor()}
-          sx={{
-            height: size === 'small' ? 4 : size === 'large' ? 12 : 8,
-            borderRadius: 2,
-            backgroundColor: 'grey.200',
-            '& .MuiLinearProgress-bar': {
-              borderRadius: 2,
-            }
-          }}
-        />
-      </Box>
-
-      {/* Detailed progress info */}
-      <Collapse in={showMoreDetails && showDetails}>
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          pt: 1,
-          borderTop: 1,
-          borderColor: 'divider'
-        }}>
-          <Typography variant="caption" color="text.secondary">
-            Progress: {progress.current} of {progress.total}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {progress.current > 0 && progress.total > 0 && (
-              `${((progress.current / progress.total) * 100).toFixed(1)}% complete`
-            )}
-          </Typography>
-        </Box>
-      </Collapse>
-    </Paper>
+    </section>
   );
 };
 

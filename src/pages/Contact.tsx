@@ -7,12 +7,10 @@
  */
 
 import React from 'react'
-import { Box, Button, Container, Divider, Stack, Typography } from '@mui/material'
-import { BugReport as BugIcon, GitHub as GitHubIcon, Email as EmailIcon } from '@mui/icons-material'
-import Layout from '@/components/Layout'
-import Footer from '@/components/Footer'
+import AppShell from '@/components/AppShell'
 import { getRoute, site } from '@/seo/manifest'
 import useDocumentMeta from '@/seo/useDocumentMeta'
+import { BugIcon, GitHubIcon, MailIcon } from '@/components/icons'
 
 const Contact: React.FC = () => {
   const route = getRoute('/contact')!
@@ -25,77 +23,54 @@ const Contact: React.FC = () => {
   })
 
   return (
-    <>
-      <Layout title="Contact">
-        <Container maxWidth="md" disableGutters>
-          <Typography variant="h4" component="h1" fontWeight={700} gutterBottom>
-            {route.h1}
-          </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ maxWidth: '44rem' }}>
-            {route.intro}
-          </Typography>
+    <AppShell active="contact" tool={{ title: 'Contact' }}>
+      <header className="section" style={{ paddingBottom: 'var(--space-4)' }}>
+        <h1>{route.h1}</h1>
+        <p className="text-muted reading" style={{ margin: 0 }}>
+          {route.intro}
+        </p>
+      </header>
 
-          <Divider sx={{ my: 4 }} />
+      <section className="section section-ruled">
+        <h2>Something is broken</h2>
+        <p className="text-muted reading">
+          Open an issue. Include the browser and version, which tool you were using, and roughly
+          what the file looked like - number of pages, whether it was a scan, how large. Do not
+          attach the file itself; it is almost never needed and it is your document.
+        </p>
+        <a
+          className="btn btn-primary"
+          href={`${site.repository}/issues/new`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <BugIcon size={18} />
+          Report an issue
+        </a>
+      </section>
 
-          <Stack spacing={3}>
-            <Box>
-              <Typography variant="h6" component="h2" fontWeight={700} gutterBottom>
-                Something is broken
-              </Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ maxWidth: '44rem', mb: 2 }}>
-                Open an issue. Include the browser and version, which tool you were using, and roughly what
-                the file looked like - number of pages, whether it was a scan, how large. Do not attach the
-                file itself; it is almost never needed and it is your document.
-              </Typography>
-              <Button
-                variant="contained"
-                startIcon={<BugIcon />}
-                href={`${site.repository}/issues/new`}
-                target="_blank"
-                rel="noopener"
-              >
-                Report an issue
-              </Button>
-            </Box>
+      <section className="section section-ruled">
+        <h2>Something is missing</h2>
+        <p className="text-muted reading">
+          Feature requests go in the same place. The bar is whether it can run entirely client-side
+          - anything that would require uploading a file is out of scope by design.
+        </p>
+        <a className="btn btn-secondary" href={site.repository} target="_blank" rel="noopener noreferrer">
+          <GitHubIcon size={18} />
+          Browse the repository
+        </a>
+      </section>
 
-            <Box>
-              <Typography variant="h6" component="h2" fontWeight={700} gutterBottom>
-                Something is missing
-              </Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ maxWidth: '44rem', mb: 2 }}>
-                Feature requests go in the same place. The bar is whether it can run entirely client-side -
-                anything that would require uploading a file is out of scope by design.
-              </Typography>
-              <Button
-                variant="outlined"
-                startIcon={<GitHubIcon />}
-                href={site.repository}
-                target="_blank"
-                rel="noopener"
-              >
-                Browse the repository
-              </Button>
-            </Box>
-
-            {site.contactEmail && (
-              <Box>
-                <Typography variant="h6" component="h2" fontWeight={700} gutterBottom>
-                  Everything else
-                </Typography>
-                <Button
-                  variant="outlined"
-                  startIcon={<EmailIcon />}
-                  href={`mailto:${site.contactEmail}`}
-                >
-                  {site.contactEmail}
-                </Button>
-              </Box>
-            )}
-          </Stack>
-        </Container>
-      </Layout>
-      <Footer />
-    </>
+      {site.contactEmail && (
+        <section className="section section-ruled">
+          <h2>Everything else</h2>
+          <a className="btn btn-secondary" href={`mailto:${site.contactEmail}`}>
+            <MailIcon size={18} />
+            {site.contactEmail}
+          </a>
+        </section>
+      )}
+    </AppShell>
   )
 }
 

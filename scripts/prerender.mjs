@@ -281,8 +281,11 @@ const buildBody = (page) => {
     .map((route) => `<li><a href="${route.path}">${escapeHtml(route.h1)}</a></li>`)
     .join('')
 
+  // No inline styling: src/index.css styles [data-prerendered] with the same
+  // design tokens the app uses, so this block is legible in both colour
+  // schemes instead of hardcoding a dark-grey-on-white that inverts badly.
   return [
-    '<div data-prerendered="true" style="max-width:44rem;margin:0 auto;padding:2rem 1.5rem;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.6;color:#1f2937">',
+    '<div data-prerendered="true">',
     `<p><a href="/">${escapeHtml(site.name)}</a></p>`,
     '<main>',
     sections.join('\n'),

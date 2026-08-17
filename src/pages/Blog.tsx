@@ -6,10 +6,8 @@
  */
 
 import React from 'react'
-import { Link as RouterLink } from 'react-router-dom'
-import { Box, Card, CardActionArea, CardContent, Chip, Container, Stack, Typography } from '@mui/material'
-import Layout from '@/components/Layout'
-import Footer from '@/components/Footer'
+import { Link } from 'react-router-dom'
+import AppShell from '@/components/AppShell'
 import { articlesForLocale, getRoute } from '@/seo/manifest'
 import useDocumentMeta from '@/seo/useDocumentMeta'
 
@@ -33,54 +31,41 @@ const Blog: React.FC = () => {
   })
 
   return (
-    <>
-      <Layout title="Guides">
-        <Container maxWidth="md" disableGutters>
-          <Typography variant="h4" component="h1" fontWeight={700} gutterBottom>
-            {route.h1}
-          </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ maxWidth: '44rem', mb: 4 }}>
-            {route.intro}
-          </Typography>
+    <AppShell active="blog" tool={{ title: 'Guides' }}>
+      <header className="section" style={{ paddingBottom: 'var(--space-4)' }}>
+        <h1>{route.h1}</h1>
+        <p className="text-muted reading" style={{ margin: 0 }}>
+          {route.intro}
+        </p>
+      </header>
 
-          {posts.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              Nothing published yet.
-            </Typography>
-          ) : (
-            <Stack spacing={2}>
-              {posts.map((post) => (
-                <Card key={post.slug} variant="outlined">
-                  <CardActionArea component={RouterLink} to={post.path}>
-                    <CardContent>
-                      <Typography variant="h6" component="h2" fontWeight={600} gutterBottom>
-                        {post.title}
-                      </Typography>
-                      {post.description && (
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                          {post.description}
-                        </Typography>
-                      )}
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                        {post.date && (
-                          <Typography variant="caption" color="text.secondary">
-                            {formatDate(post.date)}
-                          </Typography>
-                        )}
-                        {post.tags.map((tag) => (
-                          <Chip key={tag} label={tag} size="small" variant="outlined" />
-                        ))}
-                      </Box>
-                    </CardContent>
-                  </CardActionArea>
-                </Card>
-              ))}
-            </Stack>
-          )}
-        </Container>
-      </Layout>
-      <Footer />
-    </>
+      {posts.length === 0 ? (
+        <p className="section-tight text-muted">Nothing published yet.</p>
+      ) : (
+        <div className="article-list">
+          {posts.map((post) => (
+            <Link key={post.slug} to={post.path} className="article-item">
+              {post.tags.length > 0 && (
+                <div className="cluster" style={{ marginBottom: 6 }}>
+                  {post.tags.map((tag) => (
+                    <span className="tag tag-neutral" key={tag}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <h2 className="article-title">{post.title}</h2>
+              {post.description && (
+                <p className="text-muted" style={{ margin: '6px 0 0', fontSize: 14 }}>
+                  {post.description}
+                </p>
+              )}
+              {post.date && <div className="article-meta text-muted">{formatDate(post.date)}</div>}
+            </Link>
+          ))}
+        </div>
+      )}
+    </AppShell>
   )
 }
 

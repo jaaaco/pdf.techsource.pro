@@ -1,52 +1,38 @@
 /**
- * Modern Merge Page - PDF merge tool interface
- * Validates: Requirements 4.1, 4.5
+ * Merge - combine several PDFs into one
+ *
+ * Order is the whole interaction, so it is drag-first with arrow buttons
+ * beside it. Drag alone would leave the feature unusable by keyboard, and
+ * arrows alone are tedious past three files; both drive the same reorder.
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-
-  TextField,
-  Button,
-  Grid,
-  Alert,
-  Chip,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  ListItemSecondaryAction,
-  IconButton,
-  useTheme,
-  alpha,
-  Tooltip,
-} from '@mui/material';
-import {
-  MergeType as MergeIcon,
-  Settings as SettingsIcon,
-  Delete as DeleteIcon,
-  Description as FileIcon,
-  CloudUpload as UploadIcon,
-
-  SwapVert as ReorderIcon,
-  Add as AddIcon,
-} from '@mui/icons-material';
-import Layout from '@/components/Layout';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
+import AppShell from '@/components/AppShell';
+import FileDropzone from '@/components/FileDropzone';
 import ToolHero from '@/components/ToolHero';
 import SeoSection from '@/components/SeoSection';
 import RelatedGuides from '@/components/RelatedGuides';
-import Footer from '@/components/Footer';
-import { getRoute } from '@/seo/manifest';
-import useDocumentMeta from '@/seo/useDocumentMeta';
 import ProgressBar from '@/components/ProgressBar';
 import DownloadButton from '@/components/DownloadButton';
+import { getRoute } from '@/seo/manifest';
+import useDocumentMeta from '@/seo/useDocumentMeta';
 import { WorkerCommunicator, TaskIdGenerator } from '@/workers/shared/message-router';
 import { ProgressUpdate, ProcessedFile } from '@/workers/shared/progress-protocol';
 import { ErrorHandler } from '@/lib/error-handler';
+import { FileUtils } from '@/lib/file-utils';
+import {
+  AlertIcon,
+  ArrowRightIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  CloseIcon,
+  GripIcon,
+  InfoIcon,
+  MergeIcon,
+  PlusIcon,
+  UploadIcon,
+} from '@/components/icons';
 
 interface MergeOptions {
   outputName?: string;
@@ -70,8 +56,8 @@ interface MergeState {
 }
 
 const Merge: React.FC = () => {
-  const theme = useTheme();
   const route = getRoute('/merge')!;
+  const location = useLocation();
   useDocumentMeta({
     title: route.title,
     description: route.description,
@@ -91,6 +77,8 @@ const Merge: React.FC = () => {
     results: [],
     error: null,
   });
+  const dragIndex = useRef<number | null>(null);
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
 
   // Worker communicator
   const [workerCommunicator] = useState(() => new WorkerCommunicator({
@@ -102,11 +90,13 @@ const Merge: React.FC = () => {
         ...prev,
         isProcessing: false,
         progress: null,
-        results: (message.payload as any).files,
+        results: (message.payload as { files: ProcessedFile[] }).files,
       }));
     },
     onError: (message) => {
-      const processedError = ErrorHandler.processError(new Error((message.payload as any).message));
+      const processedError = ErrorHandler.processError(
+        new Error((message.payload as { message?: string }).message),
+      );
       setState(prev => ({
         ...prev,
         isProcessing: false,
@@ -141,16 +131,22 @@ const Merge: React.FC = () => {
   }, [workerCommunicator]);
 
   const handleFilesSelected = useCallback((files: File[]) => {
-    const filesWithOrder = files.map((file, index) => ({
-      file,
-      order: state.files.length + index
-    }));
     setState(prev => ({
       ...prev,
-      files: [...prev.files, ...filesWithOrder],
-      error: null
+      files: [
+        ...prev.files,
+        ...files.map((file, index) => ({ file, order: prev.files.length + index })),
+      ],
+      error: null,
     }));
-  }, [state.files.length]);
+  }, []);
+
+  // Files handed over from the homepage dropzone arrive in router state.
+  useEffect(() => {
+    const handoff = (location.state as { files?: File[] } | null)?.files;
+    if (handoff?.length) handleFilesSelected(handoff);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleOptionsChange = useCallback((newOptions: Partial<MergeOptions>) => {
     setState(prev => ({
@@ -217,12 +213,13 @@ const Merge: React.FC = () => {
   const removeFile = useCallback((index: number) => {
     setState(prev => ({
       ...prev,
-      files: prev.files.filter((_, i) => i !== index)
+      files: prev.files.filter((_, i) => i !== index).map((file, i) => ({ ...file, order: i }))
     }));
   }, []);
 
   const moveFile = useCallback((fromIndex: number, toIndex: number) => {
     setState(prev => {
+      if (toIndex < 0 || toIndex >= prev.files.length) return prev;
       const newFiles = [...prev.files];
       const [movedFile] = newFiles.splice(fromIndex, 1);
       newFiles.splice(toIndex, 0, movedFile);
@@ -235,274 +232,197 @@ const Merge: React.FC = () => {
     });
   }, []);
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const getTotalSize = () => {
-    return state.files.reduce((total, fileWithOrder) => total + fileWithOrder.file.size, 0);
-  };
+  const totalSize = state.files.reduce((total, entry) => total + entry.file.size, 0);
+  const isEditing = !state.isProcessing && state.results.length === 0;
+  const summary =
+    state.files.length > 0
+      ? `${state.files.length} file${state.files.length === 1 ? '' : 's'} · ${FileUtils.formatFileSize(totalSize)}`
+      : null;
 
   return (
-    <>
-    <Layout title="Merge PDFs" showBackButton>
-      <Box sx={{ maxWidth: 800, mx: 'auto' }}>
-        {/* Header */}
-        <ToolHero route={route} icon={<MergeIcon sx={{ fontSize: 48, color: 'success.main', mb: 2 }} />} />
+    <AppShell
+      active="merge"
+      tool={{ title: 'Merge', meta: summary && <span className="tag tag-accent">{summary}</span> }}
+    >
+      <ToolHero
+        route={route}
+        meta={summary && <span className="tag tag-accent desktop-only">{summary}</span>}
+      />
 
-        {/* Error Display */}
-        {state.error && (
-          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setState(prev => ({ ...prev, error: null }))}>
-            {state.error}
-          </Alert>
-        )}
+      {state.error && (
+        <div className="section-tight">
+          <p className="callout callout-error" style={{ whiteSpace: 'pre-line' }}>
+            <AlertIcon size={18} />
+            <span>{state.error}</span>
+          </p>
+        </div>
+      )}
 
-        {/* File Upload */}
-        {!state.isProcessing && state.results.length === 0 && (
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Box
-                sx={{
-                  border: 2,
-                  borderColor: state.files.length > 0 ? 'success.main' : 'grey.300',
-                  borderStyle: 'dashed',
-                  borderRadius: 2,
-                  p: 4,
-                  textAlign: 'center',
-                  backgroundColor: alpha(theme.palette.success.main, 0.02),
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease-in-out',
-                  '&:hover': {
-                    backgroundColor: alpha(theme.palette.success.main, 0.05),
-                    borderColor: 'success.main',
-                  }
-                }}
-                onClick={() => document.getElementById('file-input')?.click()}
+      {isEditing && (
+        <>
+          {state.files.length === 0 ? (
+            <div className="section-tight section-ruled">
+              <FileDropzone
+                multiple
+                maxFiles={20}
+                onFilesSelected={handleFilesSelected}
+                onValidationError={(message) => setState(prev => ({ ...prev, error: message }))}
               >
-                <input
-                  id="file-input"
-                  type="file"
-                  multiple
-                  accept=".pdf"
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    if (e.target.files) {
-                      handleFilesSelected(Array.from(e.target.files));
-                    }
+                <UploadIcon size={26} style={{ color: 'var(--color-accent)' }} />
+                <span className="dropzone-title">Drop the PDFs you want joined</span>
+                <span className="text-muted" style={{ fontSize: 12 }}>
+                  Two or more files · order is set here, not by the file names
+                </span>
+                <span className="btn btn-primary btn-block" aria-hidden="true">
+                  Select files
+                  <ArrowRightIcon size={18} className="btn-arrow" />
+                </span>
+              </FileDropzone>
+            </div>
+          ) : (
+            <ul className="rows" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+              {state.files.map((entry, index) => (
+                <li
+                  className="row"
+                  key={`${entry.file.name}-${index}`}
+                  draggable
+                  data-dragging={draggingIndex === index}
+                  onDragStart={() => {
+                    dragIndex.current = index;
+                    setDraggingIndex(index);
                   }}
+                  onDragEnd={() => {
+                    dragIndex.current = null;
+                    setDraggingIndex(null);
+                  }}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    if (dragIndex.current !== null && dragIndex.current !== index) {
+                      moveFile(dragIndex.current, index);
+                    }
+                    dragIndex.current = null;
+                    setDraggingIndex(null);
+                  }}
+                >
+                  <GripIcon size={18} className="row-grip" />
+                  <span className="row-index">{index + 1}</span>
+                  <span className="row-body">
+                    <span className="row-name" title={entry.file.name}>{entry.file.name}</span>
+                    <span className="row-meta text-muted">
+                      {FileUtils.formatFileSize(entry.file.size)}
+                    </span>
+                  </span>
+                  <span className="row-actions">
+                    <button
+                      type="button"
+                      className="btn btn-icon"
+                      onClick={() => moveFile(index, index - 1)}
+                      disabled={index === 0}
+                      aria-label={`Move ${entry.file.name} up`}
+                    >
+                      <ChevronUpIcon size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-icon"
+                      onClick={() => moveFile(index, index + 1)}
+                      disabled={index === state.files.length - 1}
+                      aria-label={`Move ${entry.file.name} down`}
+                    >
+                      <ChevronDownIcon size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-icon row-remove"
+                      onClick={() => removeFile(index)}
+                      aria-label={`Remove ${entry.file.name}`}
+                    >
+                      <CloseIcon size={18} />
+                    </button>
+                  </span>
+                </li>
+              ))}
+
+              <li>
+                <FileDropzone
+                  multiple
+                  maxFiles={20}
+                  className="row-add"
+                  onFilesSelected={handleFilesSelected}
+                  onValidationError={(message) => setState(prev => ({ ...prev, error: message }))}
+                >
+                  <PlusIcon size={16} />
+                  Add files
+                </FileDropzone>
+              </li>
+            </ul>
+          )}
+
+          {state.files.length > 0 && (
+            <section className="section-tight">
+              <h2 className="label">
+                Output
+              </h2>
+              <div className="field">
+                <label htmlFor="merge-output-name">File name</label>
+                <input
+                  id="merge-output-name"
+                  className="input"
+                  value={state.options.outputName}
+                  onChange={(event) => handleOptionsChange({ outputName: event.target.value })}
                 />
-                <UploadIcon sx={{ fontSize: 48, color: 'success.main', mb: 2 }} />
-                <Typography variant="h6" gutterBottom>
-                  Drop PDF files here or click to select
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Add multiple files • Drag to reorder • Minimum 2 files required
-                </Typography>
-                {state.files.length > 0 && (
-                  <Chip
-                    label={`${state.files.length} files selected`}
-                    color="success"
-                    sx={{ mt: 2 }}
-                  />
-                )}
-              </Box>
+              </div>
 
-              {/* File List with Reordering */}
-              {state.files.length > 0 && (
-                <Box sx={{ mt: 3 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h6">
-                      Files to Merge ({state.files.length})
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Total: {formatFileSize(getTotalSize())}
-                      </Typography>
-                      <Button
-                        size="small"
-                        startIcon={<AddIcon />}
-                        onClick={() => document.getElementById('file-input')?.click()}
-                      >
-                        Add More
-                      </Button>
-                    </Box>
-                  </Box>
-
-                  <List>
-                    {state.files.map((fileWithOrder, index) => (
-                      <ListItem key={`${fileWithOrder.file.name}-${index}`} divider>
-                        <ListItemIcon>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Chip
-                              label={index + 1}
-                              size="small"
-                              color="success"
-                              sx={{ mr: 1, minWidth: 32 }}
-                            />
-                            <FileIcon color="success" />
-                          </Box>
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={fileWithOrder.file.name}
-                          secondary={formatFileSize(fileWithOrder.file.size)}
-                        />
-                        <ListItemSecondaryAction>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            {index > 0 && (
-                              <Tooltip title="Move up">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => moveFile(index, index - 1)}
-                                >
-                                  <ReorderIcon sx={{ transform: 'rotate(180deg)' }} />
-                                </IconButton>
-                              </Tooltip>
-                            )}
-                            {index < state.files.length - 1 && (
-                              <Tooltip title="Move down">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => moveFile(index, index + 1)}
-                                >
-                                  <ReorderIcon />
-                                </IconButton>
-                              </Tooltip>
-                            )}
-                            <Tooltip title="Remove file">
-                              <IconButton
-                                size="small"
-                                onClick={() => removeFile(index)}
-                                color="error"
-                              >
-                                <DeleteIcon />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                        </ListItemSecondaryAction>
-                      </ListItem>
-                    ))}
-                  </List>
-                </Box>
+              {state.files.length === 1 && (
+                <p className="note" style={{ marginTop: 'var(--space-4)' }}>
+                  <InfoIcon size={18} />
+                  <span className="text-muted">
+                    Add at least one more PDF to enable merging.
+                  </span>
+                </p>
               )}
-            </CardContent>
-          </Card>
-        )}
+            </section>
+          )}
+        </>
+      )}
 
-        {/* Merge Options */}
-        {state.files.length >= 2 && !state.isProcessing && state.results.length === 0 && (
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <SettingsIcon sx={{ mr: 1, color: 'success.main' }} />
-                <Typography variant="h6">Merge Settings</Typography>
-              </Box>
+      {state.isProcessing && state.progress && (
+        <ProgressBar progress={state.progress} onCancel={handleCancel} />
+      )}
 
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Output Filename"
-                    value={state.options.outputName}
-                    onChange={(e) => handleOptionsChange({ outputName: e.target.value })}
-                    helperText="The name for your merged PDF file"
-                  />
-                </Grid>
+      {state.results.length > 0 && (
+        <DownloadButton files={state.results}>
+          <button
+            type="button"
+            className="btn btn-secondary btn-block"
+            onClick={handleReset}
+            style={{ marginTop: 'var(--space-3)' }}
+          >
+            Merge more files
+          </button>
+        </DownloadButton>
+      )}
 
-                <Grid item xs={12}>
-                  <Button
-                    variant="contained"
-                    size="large"
-                    fullWidth
-                    startIcon={<MergeIcon />}
-                    onClick={handleMerge}
-                    disabled={state.files.length < 2}
-                    color="success"
-                  >
-                    Merge {state.files.length} Files
-                  </Button>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-        )}
+      {isEditing && state.files.length > 0 && (
+        <div className="actionbar">
+          <button
+            type="button"
+            className="btn btn-primary btn-block btn-lg"
+            onClick={handleMerge}
+            disabled={state.files.length < 2}
+            style={{ marginTop: 0 }}
+          >
+            <MergeIcon size={18} />
+            Merge {state.files.length} file{state.files.length === 1 ? '' : 's'}
+            <span className="btn-note">{FileUtils.formatFileSize(totalSize)}</span>
+          </button>
+        </div>
+      )}
 
-        {/* Minimum Files Warning */}
-        {state.files.length === 1 && (
-          <Alert severity="info" sx={{ mb: 3 }}>
-            Add at least one more PDF file to enable merging. You currently have {state.files.length} file selected.
-          </Alert>
-        )}
-
-        {/* Progress */}
-        {state.isProcessing && state.progress && (
-          <ProgressBar
-            progress={state.progress}
-            onCancel={handleCancel}
-            showCancel={true}
-            showDetails={true}
-            variant="success"
-          />
-        )}
-
-        {/* Results */}
-        {state.results.length > 0 && (
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-                <Typography variant="h6">
-                  Merge Complete
-                </Typography>
-                <Button variant="outlined" onClick={handleReset}>
-                  Merge More Files
-                </Button>
-              </Box>
-
-              <List>
-                {state.results.map((result, index) => (
-                  <ListItem key={index} divider>
-                    <ListItemIcon>
-                      <FileIcon color="success" />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={result.name}
-                      secondary={
-                        <>
-                          <Typography variant="caption" display="block">
-                            Size: {formatFileSize(result.size)}
-                          </Typography>
-                          <Chip
-                            label={`${state.files.length} files merged`}
-                            size="small"
-                            color="success"
-                            sx={{ mt: 0.5 }}
-                          />
-                        </>
-                      }
-                    />
-                    <ListItemSecondaryAction>
-                      <DownloadButton
-                        files={[result]}
-                        variant="primary"
-                        size="small"
-                        showFileInfo={false}
-                      />
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                ))}
-              </List>
-            </CardContent>
-          </Card>
-        )}
-        <SeoSection route={route} />
-        <RelatedGuides tag="merge" limit={2} />
-      </Box>
-    </Layout>
-    <Footer />
-    </>
+      <SeoSection route={route} />
+      <RelatedGuides tag="merge" limit={2} />
+    </AppShell>
   );
 };
 

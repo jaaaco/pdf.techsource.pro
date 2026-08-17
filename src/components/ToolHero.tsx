@@ -11,24 +11,26 @@
  */
 
 import React from 'react'
-import { Paper, Typography } from '@mui/material'
 import type { RouteMeta } from '@/seo/manifest'
 
 interface ToolHeroProps {
   route: RouteMeta
-  icon: React.ReactNode
+  /** Right-hand summary on wide screens, e.g. "3 files · 41 pages". */
+  meta?: React.ReactNode
 }
 
-const ToolHero: React.FC<ToolHeroProps> = ({ route, icon }) => (
-  <Paper sx={{ p: 3, mb: 3, textAlign: 'center' }}>
-    {icon}
-    <Typography variant="h4" component="h1" gutterBottom fontWeight={700}>
-      {route.h1}
-    </Typography>
-    <Typography variant="body1" color="text.secondary" sx={{ maxWidth: '40rem', mx: 'auto' }}>
-      {route.intro}
-    </Typography>
-  </Paper>
+const ToolHero: React.FC<ToolHeroProps> = ({ route, meta }) => (
+  <header className="section" style={{ paddingBottom: 'var(--space-4)' }}>
+    <div className="spread" style={{ alignItems: 'flex-start' }}>
+      <div className="grow">
+        <h1 style={{ marginBottom: 'var(--space-2)' }}>{route.h1}</h1>
+        <p className="text-muted reading" style={{ margin: 0 }}>
+          {route.intro}
+        </p>
+      </div>
+      {meta && <div style={{ flex: 'none' }}>{meta}</div>}
+    </div>
+  </header>
 )
 
 export default ToolHero

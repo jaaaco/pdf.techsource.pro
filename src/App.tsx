@@ -4,11 +4,11 @@
  */
 
 import React, { Suspense, lazy, useEffect, useState } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { ThemeProvider, CssBaseline } from '@mui/material'
-import { theme } from '@/theme'
+import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom'
+import AppShell from '@/components/AppShell'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import ConsentBanner from '@/components/ConsentBanner'
+import { ThemeModeProvider } from '@/theme/mode'
 
 // Lazy load components for code splitting
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
@@ -24,100 +24,62 @@ const Article = lazy(() => import('@/pages/Article'))
 
 // Loading component
 const LoadingSpinner: React.FC = () => (
-  <div style={{
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '100vh',
-    flexDirection: 'column',
-    gap: '1rem'
-  }}>
-    <div style={{
-      width: '40px',
-      height: '40px',
-      border: '4px solid #e5e7eb',
-      borderTop: '4px solid #3b82f6',
-      borderRadius: '50%',
-      animation: 'spin 1s linear infinite'
-    }} />
-    <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>Loading...</p>
-    <style>{`
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    `}</style>
+  <div
+    style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      minHeight: '60vh',
+      flexDirection: 'column',
+      gap: 'var(--space-4)',
+    }}
+  >
+    <span className="spinner" aria-hidden="true" />
+    <p className="text-muted" style={{ margin: 0, fontSize: 13 }}>
+      Loading…
+    </p>
   </div>
 )
 
-// 404 Not Found component
+/**
+ * 404.
+ *
+ * Rare in production - public/_redirects returns a real 404 for unknown URLs
+ * rather than falling back to the SPA - so this is what a visitor sees after
+ * following a stale in-app link. It gets the full shell for the same reason:
+ * the useful thing on a dead page is the way out of it.
+ */
 const NotFound: React.FC = () => (
-  <div style={{
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: '100vh',
-    flexDirection: 'column',
-    gap: '1rem',
-    textAlign: 'center',
-    padding: '2rem'
-  }}>
-    <h1 style={{ fontSize: '4rem', margin: 0, color: '#374151' }}>404</h1>
-    <h2 style={{ fontSize: '1.5rem', margin: 0, color: '#6b7280' }}>Page Not Found</h2>
-    <p style={{ color: '#9ca3af', maxWidth: '400px' }}>
-      The page you're looking for doesn't exist. You might have mistyped the URL or the page may have been moved.
-    </p>
-    <a 
-      href="/" 
-      style={{
-        display: 'inline-block',
-        padding: '0.75rem 1.5rem',
-        backgroundColor: '#3b82f6',
-        color: 'white',
-        textDecoration: 'none',
-        borderRadius: '8px',
-        fontSize: '0.875rem',
-        fontWeight: 'bold',
-        marginTop: '1rem'
-      }}
-    >
-      Go to Dashboard
-    </a>
-  </div>
+  <AppShell>
+    <div className="section" style={{ minHeight: '50vh' }}>
+      <p className="tag tag-accent">404</p>
+      <h1>That page does not exist</h1>
+      <p className="text-muted reading">
+        You might have mistyped the URL, or the page may have moved. The four tools are all one
+        click away.
+      </p>
+      <Link className="btn btn-primary" to="/">
+        Back to the tools
+      </Link>
+    </div>
+  </AppShell>
 )
 
 // Offline status banner
 const OfflineBanner: React.FC<{ isOnline: boolean }> = ({ isOnline }) => {
-  if (isOnline) return null;
-  
+  if (isOnline) return null
+
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: '#f59e0b',
-      color: 'white',
-      padding: '0.5rem',
-      textAlign: 'center',
-      fontSize: '0.875rem',
-      fontWeight: 'bold',
-      zIndex: 9999,
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-    }}>
-      📡 You're offline - PDF Toolkit continues to work normally
+    <div className="banner-offline" role="status">
+      You are offline - compress, merge and split keep working
     </div>
   )
 }
 
 // Route wrapper with error boundary
-const RouteWrapper: React.FC<{ children: React.ReactNode; isOnline: boolean }> = ({ children, isOnline }) => (
+const RouteWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <ErrorBoundary>
-    <div style={{ paddingTop: isOnline ? 0 : '40px' }}>
-      <Suspense fallback={<LoadingSpinner />}>
-        {children}
-      </Suspense>
-    </div>
+    <Suspense fallback={<LoadingSpinner />}>{children}</Suspense>
   </ErrorBoundary>
 )
 
@@ -146,7 +108,7 @@ const useGlobalErrorHandler = () => {
   useEffect(() => {
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       console.error('Unhandled promise rejection:', event.reason)
-      
+
       // Log error for debugging
       if (import.meta.env.MODE === 'development') {
         console.group('🚨 Unhandled Promise Rejection')
@@ -154,14 +116,14 @@ const useGlobalErrorHandler = () => {
         console.error('Promise:', event.promise)
         console.groupEnd()
       }
-      
+
       // Prevent default browser error handling
       event.preventDefault()
     }
 
     const handleError = (event: ErrorEvent) => {
       console.error('Global error:', event.error)
-      
+
       // Log error for debugging
       if (import.meta.env.MODE === 'development') {
         console.group('🚨 Global Error')
@@ -187,112 +149,112 @@ const useGlobalErrorHandler = () => {
 function App() {
   const isOnline = useOnlineStatus()
   useGlobalErrorHandler()
+
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <ThemeModeProvider>
       <ErrorBoundary>
         <ConsentBanner />
         <OfflineBanner isOnline={isOnline} />
         <Router>
-        <Routes>
-          {/* Dashboard route */}
-          <Route 
-            path="/" 
-            element={
-              <RouteWrapper isOnline={isOnline}>
-                <Dashboard />
-              </RouteWrapper>
-            } 
-          />
-          
-          {/* Tool routes */}
-          <Route 
-            path="/compress" 
-            element={
-              <RouteWrapper isOnline={isOnline}>
-                <Compress />
-              </RouteWrapper>
-            } 
-          />
-          <Route 
-            path="/merge" 
-            element={
-              <RouteWrapper isOnline={isOnline}>
-                <Merge />
-              </RouteWrapper>
-            } 
-          />
-          <Route 
-            path="/split" 
-            element={
-              <RouteWrapper isOnline={isOnline}>
-                <Split />
-              </RouteWrapper>
-            } 
-          />
-          <Route 
-            path="/ocr" 
-            element={
-              <RouteWrapper isOnline={isOnline}>
-                <OCR />
-              </RouteWrapper>
-            } 
-          />
-          
-          {/* Attribution route */}
-          <Route 
-            path="/attribution" 
-            element={
-              <RouteWrapper isOnline={isOnline}>
-                <Attribution />
-              </RouteWrapper>
-            } 
-          />
-          
-          {/* Content and policy pages */}
-          <Route
-            path="/blog"
-            element={
-              <RouteWrapper isOnline={isOnline}>
-                <Blog />
-              </RouteWrapper>
-            }
-          />
-          <Route
-            path="/blog/:slug"
-            element={
-              <RouteWrapper isOnline={isOnline}>
-                <Article />
-              </RouteWrapper>
-            }
-          />
-          <Route
-            path="/privacy"
-            element={
-              <RouteWrapper isOnline={isOnline}>
-                <Privacy />
-              </RouteWrapper>
-            }
-          />
-          <Route
-            path="/contact"
-            element={
-              <RouteWrapper isOnline={isOnline}>
-                <Contact />
-              </RouteWrapper>
-            }
-          />
+          <Routes>
+            {/* Dashboard route */}
+            <Route
+              path="/"
+              element={
+                <RouteWrapper>
+                  <Dashboard />
+                </RouteWrapper>
+              }
+            />
 
-          {/* Redirect old paths */}
-          <Route path="/home" element={<Navigate to="/" replace />} />
-          <Route path="/dashboard" element={<Navigate to="/" replace />} />
-          
-          {/* 404 catch-all route */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Router>
-    </ErrorBoundary>
-    </ThemeProvider>
+            {/* Tool routes */}
+            <Route
+              path="/compress"
+              element={
+                <RouteWrapper>
+                  <Compress />
+                </RouteWrapper>
+              }
+            />
+            <Route
+              path="/merge"
+              element={
+                <RouteWrapper>
+                  <Merge />
+                </RouteWrapper>
+              }
+            />
+            <Route
+              path="/split"
+              element={
+                <RouteWrapper>
+                  <Split />
+                </RouteWrapper>
+              }
+            />
+            <Route
+              path="/ocr"
+              element={
+                <RouteWrapper>
+                  <OCR />
+                </RouteWrapper>
+              }
+            />
+
+            {/* Attribution route */}
+            <Route
+              path="/attribution"
+              element={
+                <RouteWrapper>
+                  <Attribution />
+                </RouteWrapper>
+              }
+            />
+
+            {/* Content and policy pages */}
+            <Route
+              path="/blog"
+              element={
+                <RouteWrapper>
+                  <Blog />
+                </RouteWrapper>
+              }
+            />
+            <Route
+              path="/blog/:slug"
+              element={
+                <RouteWrapper>
+                  <Article />
+                </RouteWrapper>
+              }
+            />
+            <Route
+              path="/privacy"
+              element={
+                <RouteWrapper>
+                  <Privacy />
+                </RouteWrapper>
+              }
+            />
+            <Route
+              path="/contact"
+              element={
+                <RouteWrapper>
+                  <Contact />
+                </RouteWrapper>
+              }
+            />
+
+            {/* Redirect old paths */}
+            <Route path="/home" element={<Navigate to="/" replace />} />
+            <Route path="/dashboard" element={<Navigate to="/" replace />} />
+
+            {/* 404 catch-all route */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Router>
+      </ErrorBoundary>
+    </ThemeModeProvider>
   )
 }
 

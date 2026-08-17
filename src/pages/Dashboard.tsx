@@ -1,449 +1,235 @@
 /**
- * Dashboard - Main tool selection interface
- * Validates: Requirements 9.4
+ * Home - hybrid of a dropzone and a tool index.
+ *
+ * The old dashboard made you pick a tool before it would look at a file. Most
+ * arrivals already have the file in hand, so the dropzone comes first and the
+ * tool grid is the second option, not the only one. Dropping here does not
+ * guess what you meant: it holds the files and asks which tool, then hands
+ * them over through router state so the tool page starts with them loaded.
  */
 
-import React from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import {
-  Container,
-  Typography,
-  Grid,
-  Card,
-  CardContent,
-  CardActions,
-  Button,
-  Box,
-  Chip,
-  AppBar,
-  Toolbar,
-  IconButton,
-  Paper,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-
-  useTheme,
-  alpha,
-} from '@mui/material'
-import {
-  Compress as CompressIcon,
-  MergeType as MergeIcon,
-  CallSplit as SplitIcon,
-  TextFields as OCRIcon,
-  Security as SecurityIcon,
-  Speed as SpeedIcon,
-  CloudOff as OfflineIcon,
-  PhoneAndroid as MobileIcon,
-  Info as InfoIcon,
-  GitHub as GitHubIcon,
-  Description as LicenseIcon,
-} from '@mui/icons-material'
-import Footer from '@/components/Footer'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import AppShell from '@/components/AppShell'
+import FileDropzone from '@/components/FileDropzone'
 import SeoSection from '@/components/SeoSection'
 import RelatedGuides from '@/components/RelatedGuides'
-import { getRoute } from '@/seo/manifest'
+import { FileUtils } from '@/lib/file-utils'
+import { getRoute, site } from '@/seo/manifest'
 import useDocumentMeta from '@/seo/useDocumentMeta'
+import {
+  ArrowRightIcon,
+  CompressIcon,
+  MergeIcon,
+  OcrIcon,
+  ShieldIcon,
+  SplitIcon,
+  UploadIcon,
+} from '@/components/icons'
 
-interface ToolCardProps {
-  to: string;
-  title: string;
-  description: string;
-  features: string[];
-  icon: React.ReactNode;
-  color: string;
-}
+/**
+ * Two notes per tool. A phone shows four tiles two-up, where the desktop
+ * sentence wraps to five lines and buries the tile below it; the short form
+ * is what the mock puts there.
+ */
+const TOOLS = [
+  {
+    to: '/compress',
+    name: 'Compress',
+    short: '3.95 MB to 0.17 MB on a scan',
+    note: 'Shrink scans with two measured presets. A 10-page 300 dpi scan: 3.95 MB to 0.17 MB.',
+    Icon: CompressIcon,
+  },
+  {
+    to: '/merge',
+    name: 'Merge',
+    short: 'Drag to set the order',
+    note: 'Combine files in the order you pick. Page sizes and orientation are preserved.',
+    Icon: MergeIcon,
+  },
+  {
+    to: '/split',
+    name: 'Split',
+    short: 'Ranges like 1-3, 7, 12-20',
+    note: 'Pull out single pages or ranges - 1-3, 7, 12-20 - in one pass.',
+    Icon: SplitIcon,
+  },
+  {
+    to: '/ocr',
+    name: 'OCR',
+    short: 'Make a scan searchable',
+    note: 'Turn a scan into a searchable document, with the recognition running locally.',
+    Icon: OcrIcon,
+  },
+]
 
-const ToolCard: React.FC<ToolCardProps> = ({ to, title, description, features, icon, color }) => {
-  const theme = useTheme();
-  const navigate = useNavigate();
-
-  return (
-    <Card 
-      sx={{ 
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        cursor: 'pointer',
-        transition: 'all 0.2s ease-in-out',
-        '&:hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: theme.shadows[8],
-        }
-      }}
-      onClick={() => navigate(to)}
-    >
-      <CardContent sx={{ flexGrow: 1, p: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <Box 
-            sx={{ 
-              p: 1.5, 
-              borderRadius: 2, 
-              backgroundColor: alpha(color, 0.1),
-              color: color,
-              mr: 2 
-            }}
-          >
-            {icon}
-          </Box>
-          <Typography variant="h6" component="h3" fontWeight={600}>
-            {title}
-          </Typography>
-        </Box>
-        
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          {description}
-        </Typography>
-        
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-          {features.map((feature, index) => (
-            <Chip
-              key={index}
-              label={feature}
-              size="small"
-              variant="outlined"
-              sx={{ fontSize: '0.75rem' }}
-            />
-          ))}
-        </Box>
-      </CardContent>
-      
-      <CardActions sx={{ p: 3, pt: 0 }}>
-        <Button 
-          variant="contained" 
-          fullWidth 
-          sx={{ 
-            backgroundColor: color,
-            '&:hover': {
-              backgroundColor: alpha(color, 0.8),
-            }
-          }}
-        >
-          Open Tool
-        </Button>
-      </CardActions>
-    </Card>
-  );
-};
+const HERO_TAGS = ['100% private', 'No upload', 'Works offline', 'Open source']
 
 const Dashboard: React.FC = () => {
-  const theme = useTheme();
-  const route = getRoute('/')!;
+  const route = getRoute('/')!
+  const navigate = useNavigate()
+  const location = useLocation()
+  const toolsRef = useRef<HTMLDivElement>(null)
+  const [staged, setStaged] = useState<File[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useDocumentMeta({
     title: route.title,
     description: route.description,
     path: route.path,
     locale: route.locale,
-  });
+  })
+
+  // The tab bar's "Tools" entry links to /#tools from any page; on arrival
+  // there is no browser-native scroll for a hash that React only just
+  // rendered, so do it here.
+  useEffect(() => {
+    if (location.hash === '#tools') {
+      toolsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [location.hash])
+
+  const handleFiles = useCallback((files: File[]) => {
+    setError(null)
+    setStaged(files)
+  }, [])
+
+  const openWith = useCallback(
+    (path: string) => navigate(path, { state: { files: staged } }),
+    [navigate, staged],
+  )
+
+  const stagedSize = staged.reduce((total, file) => total + file.size, 0)
 
   return (
-    <Box sx={{ minHeight: '100vh', backgroundColor: 'background.default' }}>
-      {/* App Bar */}
-      <AppBar position="static" elevation={0} sx={{ backgroundColor: 'background.paper', color: 'text.primary' }}>
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
-            PDF Toolkit
-          </Typography>
-          {import.meta.env.VITE_GITHUB_URL && (
-            <IconButton 
-              color="inherit" 
-              href={import.meta.env.VITE_GITHUB_URL} 
-              target="_blank"
-              aria-label="View the project on GitHub"
-            >
-              <GitHubIcon />
-            </IconButton>
-          )}
-          <IconButton 
-            color="inherit" 
-            component={Link} 
-            to="/attribution"
-            aria-label="Open attribution and licenses"
-          >
-            <LicenseIcon />
-          </IconButton>
-        </Toolbar>
-      </AppBar>
+    <AppShell active="home">
+      <div className="hero">
+        <div className="hero-copy">
+          <h1>{route.h1}</h1>
+          {/* route.intro verbatim: the prerendered HTML carries the same
+              sentence, and showing a crawler one paragraph and a visitor
+              another is cloaking. */}
+          <p className="text-muted">{route.intro}</p>
+          <div className="hero-tags">
+            {HERO_TAGS.map((tag) => (
+              <span className="tag tag-outline" key={tag}>
+                {tag}
+              </span>
+            ))}
+          </div>
+        </div>
 
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        {/* Hero Section */}
-        <Box sx={{ textAlign: 'center', mb: 6 }}>
-          <Typography 
-            variant="h2" 
-            component="h1" 
-            gutterBottom
-            sx={{ 
-              fontWeight: 700,
-              background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              mb: 2
+        <div className="hero-slot">
+          <FileDropzone
+            multiple
+            maxFiles={20}
+            onFilesSelected={handleFiles}
+            onValidationError={(message) => {
+              setStaged([])
+              setError(message)
             }}
           >
-            {route.h1}
-          </Typography>
+            <UploadIcon size={28} style={{ color: 'var(--color-accent)' }} />
+            <span className="dropzone-title">Drop a PDF, or pick one</span>
+            <span className="text-muted" style={{ fontSize: 12 }}>
+              Up to 500 MB · stays on this device
+            </span>
+            {/* A span, not a button: the whole dropzone is already the
+                control, and a nested button would be a second tab stop for
+                the same action. */}
+            <span className="btn btn-primary btn-block" aria-hidden="true">
+              Select files
+              <ArrowRightIcon size={18} className="btn-arrow" />
+            </span>
+          </FileDropzone>
+        </div>
+      </div>
 
-          <Typography
-            variant="h5"
-            component="p"
-            color="text.secondary"
-            sx={{ mb: 4, maxWidth: 700, mx: 'auto', fontSize: { xs: '1.05rem', md: '1.25rem' } }}
-          >
-            {route.intro}
-          </Typography>
-          
-          <Box sx={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 1 }}>
-            {[
-              { label: '100% Private', Icon: SecurityIcon, color: theme.palette.success.main },
-              { label: 'No Upload Required', Icon: SpeedIcon, color: theme.palette.primary.main },
-              { label: 'Works Offline', Icon: OfflineIcon, color: theme.palette.info.main },
-              { label: 'Mobile Friendly', Icon: MobileIcon, color: theme.palette.secondary.main },
-            ].map(({ label, Icon, color }) => (
-              <Chip
-                key={label}
-                icon={<Icon fontSize="small" sx={{ color }} aria-hidden="true" />}
-                label={label}
-                sx={{
-                  fontWeight: 600,
-                  backgroundColor: alpha(color, 0.15),
-                  color,
-                  '& .MuiChip-icon': {
-                    color,
-                  },
-                }}
-              />
+      {error && (
+        <div className="section-tight">
+          <p className="callout callout-error" style={{ whiteSpace: 'pre-line' }}>
+            {error}
+          </p>
+        </div>
+      )}
+
+      {staged.length > 0 && (
+        <section className="section-tight section-ruled">
+          <div className="rule-heading">
+            <h2 style={{ fontSize: 20 }}>
+              {staged.length} file{staged.length === 1 ? '' : 's'} ready ·{' '}
+              {FileUtils.formatFileSize(stagedSize)}
+            </h2>
+          </div>
+          <p className="text-muted" style={{ fontSize: 13 }}>
+            Nothing has been uploaded. Pick what to do with them.
+          </p>
+          <div className="chips">
+            {TOOLS.map((tool) => (
+              <button
+                key={tool.to}
+                type="button"
+                className="chip"
+                onClick={() => openWith(tool.to)}
+                disabled={tool.to === '/merge' && staged.length < 2}
+              >
+                <tool.Icon size={16} style={{ marginRight: 8 }} />
+                {tool.name}
+              </button>
             ))}
-          </Box>
-        </Box>
+          </div>
+        </section>
+      )}
 
-        {/* Tools Grid */}
-        <Grid container spacing={3} sx={{ mb: 6 }}>
-          <Grid item xs={12} sm={6} lg={3}>
-            <ToolCard
-              to="/compress"
-              title="Compress PDF"
-              description="Reduce PDF file size with intelligent compression while maintaining quality"
-              features={["Quality presets", "Large files", "Real-time progress"]}
-              icon={<CompressIcon fontSize="large" />}
-              color={theme.palette.primary.main}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} lg={3}>
-            <ToolCard
-              to="/merge"
-              title="Merge PDFs"
-              description="Combine multiple PDF files into a single document with drag-and-drop ordering"
-              features={["Drag & drop", "Preserve dimensions", "Unlimited files"]}
-              icon={<MergeIcon fontSize="large" />}
-              color={theme.palette.success.main}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} lg={3}>
-            <ToolCard
-              to="/split"
-              title="Split PDF"
-              description="Extract specific pages or ranges from PDF documents with flexible options"
-              features={["Page ranges", "Flexible syntax", "Multiple outputs"]}
-              icon={<SplitIcon fontSize="large" />}
-              color={theme.palette.warning.main}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6} lg={3}>
-            <ToolCard
-              to="/ocr"
-              title="OCR PDF"
-              description="Convert scanned documents to searchable PDFs with optical character recognition"
-              features={["Multi-language", "Searchable text", "High accuracy"]}
-              icon={<OCRIcon fontSize="large" />}
-              color={theme.palette.secondary.main}
-            />
-          </Grid>
-        </Grid>
+      <div ref={toolsRef} id="tools">
+        <div className="section-tight">
+          <div className="rule-heading">
+            <h2 className="label">
+              Or start from a tool
+            </h2>
+          </div>
+        </div>
 
-        {/* How It Works Section */}
-        <Paper sx={{ p: 4, mb: 4 }}>
-          <Typography variant="h4" component="h2" gutterBottom sx={{ textAlign: 'center', mb: 4 }}>
-            How It Works
-          </Typography>
-          
-          <Grid container spacing={4}>
-            <Grid item xs={12} md={4}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Box 
-                  sx={{ 
-                    width: 80, 
-                    height: 80, 
-                    borderRadius: '50%', 
-                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    mx: 'auto',
-                    mb: 2
-                  }}
-                >
-                  <Typography 
-                    variant="h4" 
-                    component="span" 
-                    aria-hidden="true"
-                  >
-                    📁
-                  </Typography>
-                </Box>
-                <Typography variant="h6" component="h3" gutterBottom>1. Select Files</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Drag and drop or click to select your PDF files
-                </Typography>
-              </Box>
-            </Grid>
-            
-            <Grid item xs={12} md={4}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Box 
-                  sx={{ 
-                    width: 80, 
-                    height: 80, 
-                    borderRadius: '50%', 
-                    backgroundColor: alpha(theme.palette.success.main, 0.1),
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    mx: 'auto',
-                    mb: 2
-                  }}
-                >
-                  <Typography 
-                    variant="h4" 
-                    component="span" 
-                    aria-hidden="true"
-                  >
-                    ⚙️
-                  </Typography>
-                </Box>
-                <Typography variant="h6" component="h3" gutterBottom>2. Process Locally</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  All processing happens in your browser - no uploads
-                </Typography>
-              </Box>
-            </Grid>
-            
-            <Grid item xs={12} md={4}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Box 
-                  sx={{ 
-                    width: 80, 
-                    height: 80, 
-                    borderRadius: '50%', 
-                    backgroundColor: alpha(theme.palette.secondary.main, 0.1),
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    mx: 'auto',
-                    mb: 2
-                  }}
-                >
-                  <Typography 
-                    variant="h4" 
-                    component="span" 
-                    aria-hidden="true"
-                  >
-                    💾
-                  </Typography>
-                </Box>
-                <Typography variant="h6" component="h3" gutterBottom>3. Download Results</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Get your processed files instantly
-                </Typography>
-              </Box>
-            </Grid>
-          </Grid>
-        </Paper>
+        <div className="tool-grid">
+          {TOOLS.map((tool) => (
+            <Link className="tool-tile" to={tool.to} key={tool.to}>
+              <tool.Icon size={22} style={{ color: 'var(--color-accent)' }} />
+              <span className="tool-tile-name">{tool.name}</span>
+              <span className="tool-tile-note text-muted mobile-only">{tool.short}</span>
+              <span className="tool-tile-note text-muted desktop-only">{tool.note}</span>
+              <span className="btn btn-ghost desktop-only">
+                Open
+                <ArrowRightIcon size={16} />
+              </span>
+            </Link>
+          ))}
+        </div>
+      </div>
 
-        {/* Features List */}
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h5" gutterBottom sx={{ mb: 3 }}>
-            Why Choose PDF Toolkit?
-          </Typography>
-          
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <List>
-                <ListItem>
-                  <ListItemIcon>
-                    <SecurityIcon color="success" />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary="Complete Privacy" 
-                    secondary="No data ever leaves your device"
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemIcon>
-                    <SpeedIcon color="primary" />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary="Lightning Fast" 
-                    secondary="WebAssembly-powered processing"
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemIcon>
-                    <OfflineIcon color="info" />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary="Works Offline" 
-                    secondary="No internet connection required"
-                  />
-                </ListItem>
-              </List>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <List>
-                <ListItem>
-                  <ListItemIcon>
-                    <MobileIcon color="secondary" />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary="Mobile Friendly" 
-                    secondary="Responsive design for all devices"
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemIcon>
-                    <InfoIcon color="warning" />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary="Open Source" 
-                    secondary="Transparent and community-driven"
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemIcon>
-                    <GitHubIcon />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary="Professional Grade" 
-                    secondary="Enterprise-quality PDF processing"
-                  />
-                </ListItem>
-              </List>
-            </Grid>
-          </Grid>
-        </Paper>
+      <div className="section-tight">
+        <p className="note">
+          <ShieldIcon size={20} />
+          <span>
+            <strong>Verify it yourself:</strong> open DevTools, process a file, and watch the
+            Network tab stay empty.
+          </span>
+        </p>
+      </div>
 
-        <SeoSection route={route} />
-        <RelatedGuides limit={3} />
-      </Container>
+      <SeoSection route={route} />
+      <RelatedGuides limit={3} />
 
-      <Footer />
-    </Box>
+      <div className="cta-band">
+        <h2>Nothing you open here is ever sent anywhere.</h2>
+        <p>
+          Open source, auditable, and verifiable in your own DevTools in under three minutes.{' '}
+          <a href={site.repository} target="_blank" rel="noopener noreferrer">
+            Read the source
+          </a>
+          .
+        </p>
+      </div>
+    </AppShell>
   )
 }
 

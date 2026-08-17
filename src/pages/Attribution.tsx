@@ -1,230 +1,154 @@
 /**
- * Attribution Page - Licensing and attribution information
- * Validates: Requirements 9.4
+ * Attribution and licences.
+ *
+ * Ghostscript's AGPL obligation is the reason this page is not optional. It
+ * gets the loudest treatment on the page because "compression is AGPL" is the
+ * one fact a person reusing this code has to leave with.
  */
 
-/**
- * Attribution Page - Licensing and attribution information
- * Validates: Requirements 9.4
- */
+import React from 'react'
+import AppShell from '@/components/AppShell'
+import { getRoute, site } from '@/seo/manifest'
+import useDocumentMeta from '@/seo/useDocumentMeta'
+import { AlertIcon, GitHubIcon, ShieldIcon } from '@/components/icons'
 
-import React from 'react';
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Paper,
-  Grid,
-  Alert,
-  AlertTitle,
-  Link,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Divider,
-} from '@mui/material';
-import {
-  Gavel as LicenseIcon,
-  Code as CodeIcon,
-  Security as SecurityIcon,
-  Info as InfoIcon,
-  Warning as WarningIcon,
-  GitHub as GitHubIcon,
-  LibraryBooks as LibraryIcon,
-} from '@mui/icons-material';
-import Layout from '@/components/Layout';
+const LIBRARIES = [
+  {
+    name: 'Ghostscript',
+    licence: 'AGPL v3',
+    use: 'PDF compression',
+    detail:
+      'If you distribute this software or run it as a service, you must make the source available under the same licence. Commercial use without that obligation needs a commercial Ghostscript licence.',
+    warn: true,
+  },
+  {
+    name: 'Tesseract OCR',
+    licence: 'Apache 2.0',
+    use: 'Optical character recognition',
+    detail: 'Free for commercial and non-commercial use.',
+    warn: false,
+  },
+  {
+    name: 'pdf-lib',
+    licence: 'MIT',
+    use: 'Merge and split',
+    detail: 'Free for all uses.',
+    warn: false,
+  },
+  {
+    name: 'pdf.js',
+    licence: 'Apache 2.0',
+    use: 'Page rendering during compression',
+    detail: 'Free for commercial and non-commercial use.',
+    warn: false,
+  },
+  {
+    name: 'React, TypeScript, Vite, React Router',
+    licence: 'MIT',
+    use: 'The application itself',
+    detail: 'All remaining dependencies are MIT, Apache 2.0 or BSD.',
+    warn: false,
+  },
+]
 
 const Attribution: React.FC = () => {
+  const route = getRoute('/attribution')!
+
+  useDocumentMeta({
+    title: route.title,
+    description: route.description,
+    path: route.path,
+    locale: route.locale,
+  })
+
   return (
-    <Layout title="Attribution & Licenses" showBackButton>
-      <Box sx={{ maxWidth: 800, mx: 'auto' }}>
+    <AppShell active="attribution" tool={{ title: 'Licenses' }}>
+      <header className="section" style={{ paddingBottom: 'var(--space-4)' }}>
+        <h1>{route.h1}</h1>
+        <p className="text-muted reading" style={{ margin: 0 }}>
+          {route.intro}
+        </p>
+      </header>
 
-        {/* Header */}
-        <Paper sx={{ p: 4, mb: 4, textAlign: 'center', bgcolor: 'background.paper' }}>
-          <LicenseIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
-          <Typography variant="h4" gutterBottom fontWeight="bold">
-            Attribution & Licenses
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Open source libraries and licensing information
-          </Typography>
-        </Paper>
+      <div className="section-tight">
+        <p className="note">
+          <ShieldIcon size={20} />
+          <span className="text-muted">
+            All processing happens in your browser. Your files never leave your device and no data
+            is sent to any server.
+          </span>
+        </p>
+      </div>
 
-        <Alert severity="info" sx={{ mb: 4 }} icon={<SecurityIcon />}>
-          <AlertTitle>Privacy First</AlertTitle>
-          All processing happens entirely in your browser. Your files never leave your device and no data is sent to any server.
-        </Alert>
+      <section className="section section-ruled">
+        <h2>PDF Toolkit</h2>
+        <p className="text-muted reading">
+          This project is open source under the MIT Licence: use it, modify it, redistribute it,
+          within the licence terms - and subject to the Ghostscript note below.
+        </p>
+      </section>
 
-        {/* PDF Toolkit License */}
-        <Card sx={{ mb: 4 }}>
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <CodeIcon sx={{ mr: 1, color: 'text.secondary' }} />
-              <Typography variant="h6">
-                PDF Toolkit License
-              </Typography>
-            </Box>
-            <Typography variant="body1" paragraph>
-              This project is open source and available under the MIT License.
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              You are free to use, modify, and distribute this software in accordance with the license terms.
-            </Typography>
-          </CardContent>
-        </Card>
+      <section className="section-tight section-ruled">
+        <h2 className="label">
+          Third-party libraries
+        </h2>
 
-        {/* Third-Party Libraries */}
-        <Typography variant="h5" sx={{ mb: 3, fontWeight: 'bold' }}>
-          Third-Party Libraries
-        </Typography>
+        <div className="scroll-x">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Library</th>
+                <th>Licence</th>
+                <th>Used for</th>
+              </tr>
+            </thead>
+            <tbody>
+              {LIBRARIES.map((library) => (
+                <tr key={library.name}>
+                  <td>{library.name}</td>
+                  <td>{library.licence}</td>
+                  <td className="text-muted">{library.use}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          {/* Ghostscript */}
-          <Grid item xs={12}>
-            <Card variant="outlined" sx={{ bgcolor: 'warning.50', borderColor: 'warning.200' }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <LibraryIcon sx={{ mr: 1, color: 'warning.main' }} />
-                  <Typography variant="h6" color="warning.dark">
-                    Ghostscript (AGPL v3)
-                  </Typography>
-                </Box>
-                <Typography variant="body2" sx={{ mb: 2, color: 'warning.dark' }}>
-                  Used for PDF compression functionality.
-                </Typography>
+        <div className="stack" style={{ marginTop: 'var(--space-4)' }}>
+          {LIBRARIES.filter((library) => library.warn).map((library) => (
+            <p className="callout callout-error" key={library.name}>
+              <AlertIcon size={18} />
+              <span>
+                <strong>{library.name} is {library.licence}.</strong> {library.detail}
+              </span>
+            </p>
+          ))}
+        </div>
+      </section>
 
-                <Alert severity="warning" sx={{ mb: 0 }}>
-                  <AlertTitle>Important License Notice</AlertTitle>
-                  Ghostscript is licensed under AGPL v3. If you distribute this software or run it as a service,
-                  you must make the source code available under the same license.
-                  For commercial use without AGPL obligations, consider obtaining a commercial Ghostscript license.
-                </Alert>
-              </CardContent>
-            </Card>
-          </Grid>
+      <section className="section section-ruled">
+        <h2>What that means for you</h2>
+        <ul className="reading text-muted" style={{ paddingLeft: 'var(--space-6)' }}>
+          <li style={{ marginBottom: 8 }}>
+            <strong>Personal use:</strong> nothing to do. Use it freely.
+          </li>
+          <li style={{ marginBottom: 8 }}>
+            <strong>Commercial use:</strong> either publish your source under AGPL v3, buy a
+            commercial Ghostscript licence, or drop the compression feature.
+          </li>
+          <li>
+            <strong>Redistribution:</strong> keep every licence notice and make source available
+            where the respective licences require it.
+          </li>
+        </ul>
 
-          {/* Tesseract */}
-          <Grid item xs={12} md={6}>
-            <Card variant="outlined" sx={{ height: '100%' }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom color="success.main">
-                  Tesseract OCR (Apache 2.0)
-                </Typography>
-                <Typography variant="body2" paragraph>
-                  Used for optical character recognition (OCR) functionality.
-                </Typography>
-                <Divider sx={{ my: 1 }} />
-                <Typography variant="caption" color="text.secondary">
-                  Licensed under Apache License 2.0. Free for commercial and non-commercial use.
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
+        <a className="btn btn-secondary" href={`${site.repository}/issues`} target="_blank" rel="noopener noreferrer">
+          <GitHubIcon size={18} />
+          Ask about licensing
+        </a>
+      </section>
+    </AppShell>
+  )
+}
 
-          {/* PDF-lib */}
-          <Grid item xs={12} md={6}>
-            <Card variant="outlined" sx={{ height: '100%' }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom color="primary.main">
-                  PDF-lib (MIT)
-                </Typography>
-                <Typography variant="body2" paragraph>
-                  Used for PDF manipulation (merge, split) functionality.
-                </Typography>
-                <Divider sx={{ my: 1 }} />
-                <Typography variant="caption" color="text.secondary">
-                  Licensed under MIT License. Free for all uses.
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Other Dependencies */}
-          <Grid item xs={12}>
-            <Card variant="outlined">
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Other Dependencies
-                </Typography>
-                <Typography variant="body2" color="text.secondary" paragraph>
-                  React, TypeScript, Vite, React Router
-                </Typography>
-                <Typography variant="caption" display="block" color="text.secondary">
-                  All other dependencies are licensed under permissive licenses (MIT, Apache 2.0, BSD).
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-        {/* Usage Guidelines */}
-        <Typography variant="h5" sx={{ mb: 3, fontWeight: 'bold' }}>
-          Usage Guidelines
-        </Typography>
-
-        <Card sx={{ mb: 4 }}>
-          <CardContent>
-            <List>
-              <ListItem alignItems="flex-start">
-                <ListItemIcon><InfoIcon color="primary" /></ListItemIcon>
-                <ListItemText
-                  primary="For Personal Use"
-                  secondary="You can use this software freely for personal, non-commercial purposes."
-                />
-              </ListItem>
-              <Divider component="li" variant="inset" />
-              <ListItem alignItems="flex-start">
-                <ListItemIcon><WarningIcon color="warning" /></ListItemIcon>
-                <ListItemText
-                  primary="For Commercial Use"
-                  secondaryTypographyProps={{ component: 'div' }}
-                  secondary={
-                    <>
-                      <Typography component="span" variant="body2" color="text.secondary">
-                        Due to Ghostscript's AGPL license, commercial use requires either:
-                      </Typography>
-                      <ul style={{ paddingLeft: '1.2rem', marginTop: '0.5rem' }}>
-                        <li>Making your source code available under AGPL v3</li>
-                        <li>Obtaining a commercial Ghostscript license</li>
-                        <li>Removing Ghostscript-dependent features (compression)</li>
-                      </ul>
-                    </>
-                  }
-                />
-              </ListItem>
-              <Divider component="li" variant="inset" />
-              <ListItem alignItems="flex-start">
-                <ListItemIcon><InfoIcon color="info" /></ListItemIcon>
-                <ListItemText
-                  primary="For Distribution"
-                  secondary="If you distribute this software, you must include all license notices and make source code available as required by the respective licenses."
-                />
-              </ListItem>
-            </List>
-          </CardContent>
-        </Card>
-
-        {/* Contact */}
-        <Alert severity="info" variant="outlined" sx={{ bgcolor: 'background.paper' }}>
-          <AlertTitle>Questions?</AlertTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            If you have questions about licensing or need clarification:
-            <Link
-              href={`${import.meta.env.VITE_GITHUB_URL || 'https://github.com'}/issues`}
-              target="_blank"
-              rel="noopener"
-              sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
-            >
-              <GitHubIcon fontSize="small" /> Open an issue on GitHub
-            </Link>
-          </Box>
-        </Alert>
-
-      </Box>
-    </Layout>
-  );
-};
-
-export default Attribution;
+export default Attribution

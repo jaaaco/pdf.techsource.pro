@@ -1,38 +1,20 @@
 /**
- * DownloadButton Component - Download functionality using Blob APIs
- * Validates: Requirements 1.3, 8.5
+ * DownloadButton Component - the results block for every tool
+ *
+ * One component rather than four because the shape of a finished job is the
+ * same everywhere: a list of files, each with a name, a size, sometimes a
+ * before-and-after, and a way to get it onto disk. Compression is the only
+ * one that carries `originalSize`, so the saving bar renders only there.
+ *
+ * Everything is held in memory - closing the tab loses it - which the footer
+ * line says out loud, because "where did my file go" is otherwise a support
+ * question this tool cannot answer.
  */
 
 import React, { useState, useCallback } from 'react';
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Typography,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  ListItemSecondaryAction,
-  IconButton,
-  Collapse,
-  Stack,
-  CircularProgress,
-  Divider,
-  Chip,
-  Paper
-} from '@mui/material';
-import {
-  Download as DownloadIcon,
-  Description as FileIcon,
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
-  CheckCircle as SuccessIcon,
-  FileDownload as FileDownloadIcon
-} from '@mui/icons-material';
 import { FileUtils } from '@/lib/file-utils';
 import { ProcessedFile } from '@/workers/shared/progress-protocol';
+import { ArrowRightIcon, CheckIcon, DownloadIcon } from './icons';
 
 export interface DownloadButtonProps {
   files: ProcessedFile[];
@@ -40,12 +22,15 @@ export interface DownloadButtonProps {
   onDownloadComplete?: (filename: string) => void;
   onDownloadError?: (error: string) => void;
   disabled?: boolean;
-  className?: string; // Kept for compatibility but unused
-  variant?: 'primary' | 'secondary' | 'outline'; // Mapped to MUI variants
-  size?: 'small' | 'medium' | 'large';
-  showFileInfo?: boolean;
+  /** Extra action rendered under the per-file download, e.g. "Start over". */
+  children?: React.ReactNode;
   autoDownload?: boolean;
 }
+
+const savingPercent = (file: ProcessedFile): number | null => {
+  if (!file.originalSize || file.originalSize <= file.size) return null;
+  return Math.round((1 - file.size / file.originalSize) * 100);
+};
 
 const DownloadButton: React.FC<DownloadButtonProps> = ({
   files,
@@ -53,173 +38,136 @@ const DownloadButton: React.FC<DownloadButtonProps> = ({
   onDownloadComplete,
   onDownloadError,
   disabled = false,
-  showFileInfo = true,
-  autoDownload = false
+  children,
+  autoDownload = false,
 }) => {
-  const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set());
-  const [expanded, setExpanded] = useState(false);
+  const [downloading, setDownloading] = useState<Set<string>>(new Set());
 
-  /**
-   * Download a single file
-   */
-  const downloadFile = useCallback(async (file: ProcessedFile): Promise<void> => {
-    try {
-      setDownloadingFiles(prev => new Set(prev).add(file.name));
-      onDownloadStart?.(file.name);
-
-      // Create download using FileUtils
-      FileUtils.downloadFile(file.data, file.name, file.mimeType);
-
-      onDownloadComplete?.(file.name);
-    } catch (error) {
-      const errorMessage = `Failed to download ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`;
-      onDownloadError?.(errorMessage);
-    } finally {
-      setDownloadingFiles(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(file.name);
-        return newSet;
-      });
-    }
-  }, [onDownloadStart, onDownloadComplete, onDownloadError]);
-
-  /**
-   * Download all files
-   */
-  const handleDownloadAll = useCallback(async (): Promise<void> => {
-    if (files.length === 0) return;
-
-    try {
-      // Download files sequentially
-      for (const file of files) {
-        await downloadFile(file);
-        // Small delay
-        await new Promise(resolve => setTimeout(resolve, 100));
+  const downloadFile = useCallback(
+    async (file: ProcessedFile): Promise<void> => {
+      try {
+        setDownloading((prev) => new Set(prev).add(file.name));
+        onDownloadStart?.(file.name);
+        FileUtils.downloadFile(file.data, file.name, file.mimeType);
+        onDownloadComplete?.(file.name);
+      } catch (error) {
+        onDownloadError?.(
+          `Failed to download ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
+      } finally {
+        setDownloading((prev) => {
+          const next = new Set(prev);
+          next.delete(file.name);
+          return next;
+        });
       }
-    } catch (error) {
-      onDownloadError?.(
-        `Failed to download files: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
-  }, [files, downloadFile, onDownloadError]);
+    },
+    [onDownloadStart, onDownloadComplete, onDownloadError],
+  );
 
-  // Auto-download effect
+  const handleDownloadAll = useCallback(async (): Promise<void> => {
+    for (const file of files) {
+      await downloadFile(file);
+      // Browsers throttle a burst of programmatic downloads; the gap keeps
+      // the later ones from being dropped silently.
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }, [files, downloadFile]);
+
   React.useEffect(() => {
     if (autoDownload && files.length > 0 && !disabled) {
-      handleDownloadAll();
+      void handleDownloadAll();
     }
   }, [autoDownload, files, disabled, handleDownloadAll]);
 
-  if (files.length === 0) {
-    return null;
-  }
+  if (files.length === 0) return null;
 
-  // Calculate stats
   const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-  const totalOriginalSize = files.reduce((sum, file) => sum + (file.originalSize || file.size), 0);
-  const compressionRatio = totalOriginalSize > 0 ? (totalOriginalSize - totalSize) / totalOriginalSize : 0;
-  const showSavings = compressionRatio > 0.01; // Only show if > 1% savings
-
-  const isDownloadingAll = downloadingFiles.size > 0;
+  const busy = downloading.size > 0;
 
   return (
-    <Card variant="outlined" sx={{ bgcolor: 'background.paper', borderRadius: 2, overflow: 'hidden' }}>
-      <CardContent sx={{ p: 3 }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} flexWrap="wrap">
-          <Box>
-            <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
-              <SuccessIcon color="success" />
-              <Typography variant="h6" fontWeight="bold">
-                Ready for Download
-              </Typography>
-            </Stack>
-            <Typography variant="body2" color="text.secondary">
-              {files.length} file{files.length !== 1 && 's'} • {FileUtils.formatFileSize(totalSize)}
-              {showSavings && (
-                <Typography component="span" variant="body2" color="success.main" fontWeight="medium" sx={{ ml: 1 }}>
-                  (Saved {FileUtils.formatFileSize(totalOriginalSize - totalSize)})
-                </Typography>
+    <section className="section-tight section-ruled">
+      <div className="cluster" style={{ marginBottom: 'var(--space-3)' }}>
+        <CheckIcon size={20} style={{ color: 'var(--color-accent)' }} />
+        <h2 className="label" style={{ margin: 0 }}>
+          Done
+        </h2>
+        <span className="text-muted" style={{ fontSize: 12 }}>
+          {files.length} file{files.length === 1 ? '' : 's'} · {FileUtils.formatFileSize(totalSize)}
+        </span>
+      </div>
+
+      {files.length > 1 && (
+        <button
+          type="button"
+          className="btn btn-primary btn-block btn-lg"
+          onClick={handleDownloadAll}
+          disabled={disabled || busy}
+          style={{ marginTop: 0, marginBottom: 'var(--space-3)' }}
+        >
+          {busy ? 'Downloading…' : `Download all (${files.length})`}
+          <DownloadIcon size={18} className="btn-arrow" />
+        </button>
+      )}
+
+      <div className="stack">
+        {files.map((file, index) => {
+          const percent = savingPercent(file);
+          const unchanged = Boolean(file.metadata?.unchanged);
+
+          return (
+            <div className="result-card" key={`${file.name}-${index}`}>
+              <div className="result-name" title={file.name}>
+                {file.name}
+              </div>
+
+              {percent !== null ? (
+                <>
+                  <div className="result-sizes">
+                    <span className="result-before text-muted">
+                      {FileUtils.formatFileSize(file.originalSize as number)}
+                    </span>
+                    <ArrowRightIcon size={16} />
+                    <span className="result-after">{FileUtils.formatFileSize(file.size)}</span>
+                  </div>
+                  <div className="result-bar" aria-hidden="true">
+                    <div
+                      className="progress-fill"
+                      style={{ width: `${Math.max(2, 100 - percent)}%` }}
+                    />
+                  </div>
+                  <div className="text-positive" style={{ fontSize: 12, marginBottom: 14 }}>
+                    {percent}% smaller
+                  </div>
+                </>
+              ) : (
+                <div className="result-sizes">
+                  <span className="result-after">{FileUtils.formatFileSize(file.size)}</span>
+                  {unchanged && <span className="tag tag-neutral">unchanged</span>}
+                </div>
               )}
-            </Typography>
-          </Box>
 
-          <Box>
-            <Button
-              variant="contained"
-              size="large"
-              startIcon={isDownloadingAll ? <CircularProgress size={20} color="inherit" /> : <DownloadIcon />}
-              onClick={handleDownloadAll}
-              disabled={disabled || isDownloadingAll}
-              sx={{ px: 4, py: 1.5, borderRadius: 2 }}
-            >
-              {isDownloadingAll
-                ? `Downloading...`
-                : `Download ${files.length > 1 ? 'All' : 'File'}`
-              }
-            </Button>
-          </Box>
-        </Stack>
+              <button
+                type="button"
+                className="btn btn-primary btn-block"
+                onClick={() => downloadFile(file)}
+                disabled={disabled || downloading.has(file.name)}
+                style={{ marginTop: 0 }}
+              >
+                {downloading.has(file.name) ? 'Downloading…' : 'Download'}
+                <DownloadIcon size={18} className="btn-arrow" />
+              </button>
+            </div>
+          );
+        })}
+      </div>
 
-        {showFileInfo && files.length > 1 && (
-          <Box mt={3}>
-            <Button
-              size="small"
-              onClick={() => setExpanded(!expanded)}
-              endIcon={expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-              sx={{ mb: 1 }}
-            >
-              View individual files
-            </Button>
-            <Collapse in={expanded}>
-              <Paper variant="outlined" sx={{ mt: 1, borderRadius: 1 }}>
-                <List dense disablePadding>
-                  {files.map((file, index) => {
-                    const isDownloading = downloadingFiles.has(file.name);
-                    return (
-                      <React.Fragment key={index}>
-                        {index > 0 && <Divider component="li" />}
-                        <ListItem>
-                          <ListItemIcon sx={{ minWidth: 40 }}>
-                            <FileIcon color="action" />
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={file.name}
-                            secondary={
-                              <Stack direction="row" spacing={1} alignItems="center" component="span">
-                                <span>{FileUtils.formatFileSize(file.size)}</span>
-                                {file.originalSize && file.originalSize > file.size && (
-                                  <Chip
-                                    label={`-${Math.round((1 - file.size / file.originalSize) * 100)}%`}
-                                    size="small"
-                                    color="success"
-                                    variant="outlined"
-                                    sx={{ height: 20, fontSize: '0.7em' }}
-                                  />
-                                )}
-                              </Stack>
-                            }
-                          />
-                          <ListItemSecondaryAction>
-                            <IconButton
-                              edge="end"
-                              onClick={() => downloadFile(file)}
-                              disabled={disabled || isDownloading}
-                              color="primary"
-                            >
-                              {isDownloading ? <CircularProgress size={20} /> : <FileDownloadIcon />}
-                            </IconButton>
-                          </ListItemSecondaryAction>
-                        </ListItem>
-                      </React.Fragment>
-                    );
-                  })}
-                </List>
-              </Paper>
-            </Collapse>
-          </Box>
-        )}
-      </CardContent>
-    </Card>
+      {children}
+
+      <p className="text-muted" style={{ fontSize: 11, margin: 'var(--space-3) 0 0' }}>
+        Results live in memory only. Closing the tab clears them, so download what you need.
+      </p>
+    </section>
   );
 };
 

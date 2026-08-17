@@ -1,11 +1,20 @@
 /**
- * FileDropzone Component - Drag-and-drop file upload interface
- * Validates: Requirements 8.1, 8.2
+ * FileDropzone Component - Drag-and-drop file selection
+ *
+ * Validation lives here rather than in each tool page: quick PDF sniffing,
+ * size cap, extension check, count cap. A page gets either a list of files it
+ * can trust or a message it can show, never a half-validated mix.
+ *
+ * The default body is deliberately plain. Tool pages pass `children` with the
+ * copy from the design (headline, size note, a SELECT FILES slab) - that
+ * inner "button" is a span on purpose, because the dropzone itself is already
+ * the button and nesting two would give the keyboard two stops for one action.
  */
 
 import React, { useCallback, useState, useRef } from 'react';
 import { FileUtils } from '@/lib/file-utils';
 import { PDFValidator } from '@/lib/pdf-validator';
+import { UploadIcon } from './icons';
 
 export interface FileDropzoneProps {
   onFilesSelected: (files: File[]) => void;
@@ -235,6 +244,7 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
 
   // Generate CSS classes
   const dropzoneClasses = [
+    'dropzone',
     'file-dropzone',
     state.isDragOver ? 'file-dropzone--drag-over' : '',
     disabled ? 'file-dropzone--disabled' : '',
@@ -256,23 +266,8 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
       role="button"
       aria-label={`Drop ${multiple ? 'files' : 'file'} here or click to select`}
       aria-disabled={disabled}
-      style={{
-        border: '2px dashed #ccc',
-        borderRadius: '8px',
-        padding: '2rem',
-        textAlign: 'center',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        backgroundColor: state.isDragOver ? '#f0f8ff' : 'transparent',
-        borderColor: state.isDragOver ? '#007bff' : '#ccc',
-        opacity: disabled ? 0.6 : 1,
-        transition: 'all 0.2s ease-in-out',
-        minHeight: '120px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '1rem'
-      }}
+      data-dragover={state.isDragOver}
+      style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
     >
       {/* Hidden file input */}
       <input
@@ -285,79 +280,36 @@ const FileDropzone: React.FC<FileDropzoneProps> = ({
         disabled={disabled}
       />
 
-      {/* Content */}
       {children || (
         <>
           {state.isValidating ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  border: '2px solid #007bff',
-                  borderTop: '2px solid transparent',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite'
-                }}
-              />
+            <div className="cluster">
+              <span className="spinner" aria-hidden="true" />
               <span>Validating files...</span>
             </div>
           ) : (
             <>
-              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
-                📄
-              </div>
+              <UploadIcon size={26} style={{ color: 'var(--color-accent)' }} />
               <div>
-                <p style={{ margin: 0, fontWeight: 'bold' }}>
+                <p className="dropzone-title" style={{ margin: 0 }}>
                   {state.isDragOver
                     ? `Drop ${multiple ? 'files' : 'file'} here`
                     : `Drag and drop ${multiple ? 'PDF files' : 'a PDF file'} here`
                   }
                 </p>
-                <p style={{ margin: '0.5rem 0 0 0', color: '#666', fontSize: '0.9rem' }}>
+                <p className="text-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
                   or click to select {multiple ? 'files' : 'a file'}
                 </p>
               </div>
-              <div style={{ fontSize: '0.8rem', color: '#888' }}>
-                <p style={{ margin: 0 }}>
-                  Accepted: {acceptedTypes.join(', ')} • 
-                  Max size: {FileUtils.formatFileSize(maxFileSize)}
-                  {multiple && ` • Max files: ${maxFiles}`}
-                </p>
-              </div>
+              <p className="text-muted" style={{ margin: 0, fontSize: 12 }}>
+                Accepted: {acceptedTypes.join(', ')} •{' '}
+                Max size: {FileUtils.formatFileSize(maxFileSize)}
+                {multiple && ` • Max files: ${maxFiles}`}
+              </p>
             </>
           )}
         </>
       )}
-
-      {/* CSS Animation */}
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        
-        .file-dropzone {
-          position: relative;
-        }
-        
-        .file-dropzone:focus {
-          outline: 2px solid #007bff;
-          outline-offset: 2px;
-        }
-        
-        .file-dropzone--drag-over {
-          transform: scale(1.02);
-        }
-        
-        .file-dropzone--disabled {
-          cursor: not-allowed !important;
-        }
-        
-        .file-dropzone--validating {
-          pointer-events: none;
-        }
-      `}</style>
     </div>
   );
 };

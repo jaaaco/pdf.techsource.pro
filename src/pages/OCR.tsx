@@ -1,57 +1,37 @@
 /**
- * Modern OCR Page - PDF OCR tool interface
- * Validates: Requirements 6.1, 6.5
+ * OCR - turn a scan into a searchable document
+ *
+ * Languages are toggles rather than a multi-select: picking two is the common
+ * case (a Polish contract with English annexes) and a <select multiple> makes
+ * that a fight on a phone.
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Button,
-  Grid,
-  Alert,
-  Chip,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  ListItemSecondaryAction,
-  IconButton,
-  useTheme,
-  alpha,
-
-  SelectChangeEvent,
-} from '@mui/material';
-import {
-  TextFields as OCRIcon,
-  Settings as SettingsIcon,
-  Delete as DeleteIcon,
-  Description as FileIcon,
-  CloudUpload as UploadIcon,
-  Language as LanguageIcon,
-
-  Speed as SpeedIcon,
-  HighQuality as QualityIcon,
-} from '@mui/icons-material';
-import Layout from '@/components/Layout';
+import { useLocation } from 'react-router-dom';
+import AppShell from '@/components/AppShell';
+import FileDropzone from '@/components/FileDropzone';
 import ToolHero from '@/components/ToolHero';
 import SeoSection from '@/components/SeoSection';
 import RelatedGuides from '@/components/RelatedGuides';
-import Footer from '@/components/Footer';
-import { getRoute } from '@/seo/manifest';
-import useDocumentMeta from '@/seo/useDocumentMeta';
 import ProgressBar from '@/components/ProgressBar';
 import DownloadButton from '@/components/DownloadButton';
+import DebugConsole from '@/components/DebugConsole';
+import { getRoute } from '@/seo/manifest';
+import useDocumentMeta from '@/seo/useDocumentMeta';
 import { WorkerCommunicator, TaskIdGenerator } from '@/workers/shared/message-router';
 import { ProgressUpdate, ProcessedFile } from '@/workers/shared/progress-protocol';
 import { ErrorHandler } from '@/lib/error-handler';
+import { FileUtils } from '@/lib/file-utils';
 import { useDebugConsole } from '@/hooks/useDebugConsole';
+import {
+  AlertIcon,
+  ArrowRightIcon,
+  FileIcon,
+  InfoIcon,
+  OcrIcon,
+  TrashIcon,
+  UploadIcon,
+} from '@/components/icons';
 
 interface OCROptions {
   languages: string[];
@@ -59,8 +39,6 @@ interface OCROptions {
   preserveFormatting?: boolean;
   confidenceThreshold?: number;
 }
-
-// ... imports remain the same
 
 interface OCRState {
   file: File | null;
@@ -73,9 +51,53 @@ interface OCRState {
   debugLogs: string[];
 }
 
+/**
+ * Limited to what the text layer can actually encode.
+ *
+ * The searchable PDF embeds DejaVu Sans, which covers Latin, Latin Extended
+ * and Cyrillic. Japanese, Chinese, Arabic and Hindi used to be offered here
+ * and could never produce a text layer - every word failed to encode and was
+ * dropped by a silent catch, so the tool reported success and returned a PDF
+ * with nothing in it. Offering them again needs a font that covers them.
+ */
+const LANGUAGES = [
+  { code: 'eng', name: 'English' },
+  { code: 'pol', name: 'Polish' },
+  { code: 'deu', name: 'German' },
+  { code: 'fra', name: 'French' },
+  { code: 'spa', name: 'Spanish' },
+  { code: 'ita', name: 'Italian' },
+  { code: 'por', name: 'Portuguese' },
+  { code: 'nld', name: 'Dutch' },
+  { code: 'ces', name: 'Czech' },
+  { code: 'rus', name: 'Russian' },
+  { code: 'ukr', name: 'Ukrainian' },
+];
+
+const OUTPUT_FORMATS = [
+  {
+    value: 'searchable-pdf' as const,
+    title: 'Searchable PDF',
+    note: 'Original pages, with an invisible text layer underneath. Recommended.',
+  },
+  {
+    value: 'text-only' as const,
+    title: 'Plain text (.txt)',
+    note: 'Just the recognised words, with no layout.',
+  },
+];
+
+const estimateProcessingTime = (fileSize: number): number =>
+  Math.round((fileSize / (1024 * 1024)) * 30);
+
+const formatTime = (seconds: number) => {
+  if (seconds < 60) return `~${seconds}s`;
+  return `~${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+};
+
 const OCR: React.FC = () => {
-  const theme = useTheme();
   const route = getRoute('/ocr')!;
+  const location = useLocation();
   useDocumentMeta({
     title: route.title,
     description: route.description,
@@ -83,14 +105,7 @@ const OCR: React.FC = () => {
     locale: route.locale,
   });
   const [isDebugVisible] = useDebugConsole();
-
-  const addLog = (message: string) => {
-    const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
-    setState(prev => ({
-      ...prev,
-      debugLogs: [...prev.debugLogs, `[${timestamp}] ${message}`]
-    }));
-  };
+  const [showAllLanguages, setShowAllLanguages] = useState(false);
 
   const [state, setState] = useState<OCRState>({
     file: null,
@@ -108,6 +123,14 @@ const OCR: React.FC = () => {
     debugLogs: [],
   });
 
+  const addLog = useCallback((message: string) => {
+    const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
+    setState(prev => ({
+      ...prev,
+      debugLogs: [...prev.debugLogs, `[${timestamp}] ${message}`]
+    }));
+  }, []);
+
   // Worker communicator
   const [workerCommunicator] = useState(() => new WorkerCommunicator({
     onProgress: (message) => {
@@ -120,17 +143,18 @@ const OCR: React.FC = () => {
       }));
     },
     onComplete: (message) => {
+      const files = (message.payload as { files: ProcessedFile[] }).files;
       setState(prev => ({
         ...prev,
         isProcessing: false,
         progress: null,
-        results: (message.payload as any).files,
-        debugLogs: [...prev.debugLogs, `[${new Date().toISOString().split('T')[1].slice(0, -1)}] Complete: Received ${(message.payload as any).files.length} file(s)`]
+        results: files,
+        debugLogs: [...prev.debugLogs, `[${new Date().toISOString().split('T')[1].slice(0, -1)}] Complete: Received ${files.length} file(s)`]
       }));
     },
     onError: (message) => {
       // Log the raw message payload for debugging
-      const rawError = message.payload as any;
+      const rawError = message.payload as { message?: string };
       const errorMsg = rawError.message || JSON.stringify(rawError);
 
       const processedError = ErrorHandler.processError(new Error(errorMsg));
@@ -174,45 +198,44 @@ const OCR: React.FC = () => {
     // Cleanup worker on unmount
     return () => {
       isMounted = false;
-      addLog('Terminating worker instance (cleanup)...');
       workerCommunicator.terminateWorker();
     };
-  }, [workerCommunicator]);
-
-  // ... (handleFileSelected, estimateProcessingTime, handleLanguageChange, handleOptionsChange remain same)
+  }, [workerCommunicator, addLog]);
 
   const handleFileSelected = useCallback((files: File[]) => {
-    if (files.length > 0) {
-      const file = files[0];
-      const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
-      setState(prev => ({
+    if (files.length === 0) return;
+    const file = files[0];
+    const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
+    setState(prev => ({
+      ...prev,
+      file,
+      error: null,
+      results: [],
+      estimatedTime: estimateProcessingTime(file.size),
+      debugLogs: [...prev.debugLogs, `[${timestamp}] File selected: ${file.name} (${FileUtils.formatFileSize(file.size)})`]
+    }));
+  }, []);
+
+  // A file handed over from the homepage dropzone arrives in router state.
+  useEffect(() => {
+    const handoff = (location.state as { files?: File[] } | null)?.files;
+    if (handoff?.length) handleFileSelected(handoff.slice(0, 1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toggleLanguage = useCallback((code: string) => {
+    setState(prev => {
+      const selected = prev.options.languages.includes(code)
+        ? prev.options.languages.filter((value) => value !== code)
+        : [...prev.options.languages, code];
+
+      // Recognition with no language is not a state the engine can run in.
+      return {
         ...prev,
-        file,
-        error: null,
-        results: [],
-        estimatedTime: estimateProcessingTime(file.size),
-        debugLogs: [...prev.debugLogs, `[${timestamp}] File selected: ${file.name} (${formatFileSize(file.size)})`]
-      }));
-    }
+        options: { ...prev.options, languages: selected.length > 0 ? selected : [code] },
+      };
+    });
   }, []);
-
-  // ... handleLanguageChange, handleOptionsChange ...
-  const handleLanguageChange = useCallback((event: SelectChangeEvent<string[]>) => {
-    const value = event.target.value;
-    const languages = typeof value === 'string' ? value.split(',') : value;
-    setState(prev => ({
-      ...prev,
-      options: { ...prev.options, languages }
-    }));
-  }, []);
-
-  const handleOptionsChange = useCallback((newOptions: Partial<OCROptions>) => {
-    setState(prev => ({
-      ...prev,
-      options: { ...prev.options, ...newOptions }
-    }));
-  }, []);
-
 
   const handleOCR = useCallback(async () => {
     if (!state.file || state.isProcessing) return;
@@ -252,9 +275,8 @@ const OCR: React.FC = () => {
         error: processedError.message
       }));
     }
-  }, [state.file, state.options, state.isProcessing, workerCommunicator]);
+  }, [state.file, state.options, state.isProcessing, workerCommunicator, addLog]);
 
-  // ... handleCancel, handleReset ...
   const handleCancel = useCallback(() => {
     const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
     workerCommunicator.cancelCurrentTask();
@@ -277,406 +299,203 @@ const OCR: React.FC = () => {
     }));
   }, []);
 
-  // ... helper functions (formatFileSize, formatTime, getLanguageOptions, getOutputFormatDescription) ...
-  const estimateProcessingTime = (fileSize: number): number => {
-    const sizeInMB = fileSize / (1024 * 1024);
-    return Math.round(sizeInMB * 30);
-  };
+  // The four most-requested up front; the rest arrive on demand, plus any
+  // already selected so a chosen language never hides itself.
+  const visibleLanguages = showAllLanguages
+    ? LANGUAGES
+    : LANGUAGES.filter(
+        (language, index) => index < 4 || state.options.languages.includes(language.code),
+      );
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const formatTime = (seconds: number) => {
-    if (seconds < 60) return `${seconds} seconds`;
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}m ${remainingSeconds}s`;
-  };
-
-  /**
-   * Limited to what the text layer can actually encode.
-   *
-   * The searchable PDF embeds DejaVu Sans, which covers Latin, Latin Extended
-   * and Cyrillic. Japanese, Chinese, Arabic and Hindi used to be offered here
-   * and could never produce a text layer - every word failed to encode and was
-   * dropped by a silent catch, so the tool reported success and returned a PDF
-   * with nothing in it. Offering them again needs a font that covers them.
-   *
-   * Polish was missing despite being a target language, and is now included.
-   */
-  const getLanguageOptions = () => [
-    { code: 'eng', name: 'English' },
-    { code: 'pol', name: 'Polish' },
-    { code: 'deu', name: 'German' },
-    { code: 'fra', name: 'French' },
-    { code: 'spa', name: 'Spanish' },
-    { code: 'ita', name: 'Italian' },
-    { code: 'por', name: 'Portuguese' },
-    { code: 'nld', name: 'Dutch' },
-    { code: 'ces', name: 'Czech' },
-    { code: 'rus', name: 'Russian' },
-    { code: 'ukr', name: 'Ukrainian' },
-  ];
-
-  const getOutputFormatDescription = (format: string) => {
-    switch (format) {
-      case 'searchable-pdf': return 'PDF with invisible text layer (recommended)';
-      case 'text-only': return 'Plain text file with extracted content';
-      default: return '';
-    }
-  };
+  const isEditing = !state.isProcessing && state.results.length === 0;
+  const summary = state.file
+    ? `${state.file.name} · ${FileUtils.formatFileSize(state.file.size)}`
+    : null;
 
   return (
-    <>
-    <Layout title="OCR PDF" showBackButton>
-      <Box sx={{ maxWidth: 800, mx: 'auto' }}>
-        {/* ... Header, Error Display, File Upload, OCR Options, Progress, Results ... */}
-        {/* Keeping existing JSX for the top part, just ensuring the logic above replaces the state management.
-            The below JSX needs to be preserved or matching the original file. 
-            I'll focus on replacing the content from the start of the component loop down to the end properly.
-        */}
+    <AppShell
+      active="ocr"
+      tool={{ title: 'OCR', meta: summary && <span className="tag tag-accent">{summary}</span> }}
+    >
+      <ToolHero
+        route={route}
+        meta={summary && <span className="tag tag-accent desktop-only">{summary}</span>}
+      />
 
-        {/* Header */}
-        <ToolHero route={route} icon={<OCRIcon sx={{ fontSize: 48, color: 'secondary.main', mb: 2 }} />} />
+      {state.error && (
+        <div className="section-tight">
+          <p className="callout callout-error" style={{ whiteSpace: 'pre-line' }}>
+            <AlertIcon size={18} />
+            <span>{state.error}</span>
+          </p>
+        </div>
+      )}
 
-        {/* Error Display */}
-        {state.error && (
-          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setState(prev => ({ ...prev, error: null }))}>
-            {state.error}
-          </Alert>
-        )}
+      {isEditing && !state.file && (
+        <div className="section-tight section-ruled">
+          <FileDropzone
+            onFilesSelected={handleFileSelected}
+            onValidationError={(message) => setState(prev => ({ ...prev, error: message }))}
+          >
+            <UploadIcon size={26} style={{ color: 'var(--color-accent)' }} />
+            <span className="dropzone-title">Drop a scanned PDF</span>
+            <span className="text-muted" style={{ fontSize: 12 }}>
+              One file · recognition runs on this device
+            </span>
+            <span className="btn btn-primary btn-block" aria-hidden="true">
+              Select a file
+              <ArrowRightIcon size={18} className="btn-arrow" />
+            </span>
+          </FileDropzone>
+        </div>
+      )}
 
-        {/* File Upload */}
-        {!state.isProcessing && state.results.length === 0 && (
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Box
-                sx={{
-                  border: 2,
-                  borderColor: state.file ? 'secondary.main' : 'grey.300',
-                  borderStyle: 'dashed',
-                  borderRadius: 2,
-                  p: 4,
-                  textAlign: 'center',
-                  backgroundColor: alpha(theme.palette.secondary.main, 0.02),
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease-in-out',
-                  '&:hover': {
-                    backgroundColor: alpha(theme.palette.secondary.main, 0.05),
-                    borderColor: 'secondary.main',
-                  }
-                }}
-                onClick={() => document.getElementById('file-input')?.click()}
-              >
-                <input
-                  id="file-input"
-                  type="file"
-                  accept=".pdf"
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    if (e.target.files) {
-                      handleFileSelected(Array.from(e.target.files));
-                    }
-                  }}
-                />
-                <UploadIcon sx={{ fontSize: 48, color: 'secondary.main', mb: 2 }} />
-                <Typography variant="h6" gutterBottom>
-                  Drop a scanned PDF here or click to select
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Single PDF file • Up to 500MB • Scanned documents or images
-                </Typography>
-              </Box>
+      {isEditing && state.file && (
+        <>
+          <div className="rows">
+            <div className="row row-last">
+              <FileIcon size={22} />
+              <span className="row-body">
+                <span className="row-name" title={state.file.name}>{state.file.name}</span>
+                <span className="row-meta text-muted">
+                  {FileUtils.formatFileSize(state.file.size)}
+                  {state.estimatedTime ? ` · ${formatTime(state.estimatedTime)} estimated` : ''}
+                </span>
+              </span>
+              <span className="row-actions">
+                <button
+                  type="button"
+                  className="btn btn-icon row-remove"
+                  onClick={handleReset}
+                  aria-label="Remove file"
+                >
+                  <TrashIcon size={18} />
+                </button>
+              </span>
+            </div>
+          </div>
 
-              {/* File Info */}
-              {state.file && (
-                <Box sx={{ mt: 3 }}>
-                  <Typography variant="h6" gutterBottom>
-                    Selected File
-                  </Typography>
-                  <List>
-                    <ListItem divider>
-                      <ListItemIcon>
-                        <FileIcon color="secondary" />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={state.file.name}
-                        secondary={
-                          <>
-                            <Typography variant="caption" display="block">
-                              Size: {formatFileSize(state.file.size)}
-                            </Typography>
-                            {state.estimatedTime && (
-                              <Chip
-                                label={`Est. processing time: ${formatTime(state.estimatedTime)}`}
-                                size="small"
-                                color="secondary"
-                                icon={<SpeedIcon />}
-                                sx={{ mt: 0.5 }}
-                              />
-                            )}
-                          </>
-                        }
-                      />
-                      <ListItemSecondaryAction>
-                        <IconButton edge="end" onClick={handleReset}>
-                          <DeleteIcon />
-                        </IconButton>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                  </List>
+          {state.file.size > 50 * 1024 * 1024 && (
+            <div className="section-tight">
+              <p className="callout">
+                <strong>That is a large file.</strong> OCR is the slowest of the four tools and this
+                may take several minutes. Splitting the document first is usually faster.
+              </p>
+            </div>
+          )}
 
-                  {/* Large File Warning */}
-                  {state.file.size > 50 * 1024 * 1024 && (
-                    <Alert severity="warning" sx={{ mt: 2 }}>
-                      Large file detected. OCR processing may take several minutes.
-                      Consider splitting the document for faster processing.
-                    </Alert>
-                  )}
-                </Box>
+          <section className="section-tight">
+            <h2 className="label">
+              Language
+            </h2>
+            <div className="chips" role="group" aria-label="Recognition languages">
+              {visibleLanguages.map((language) => (
+                <button
+                  key={language.code}
+                  type="button"
+                  className="chip"
+                  aria-pressed={state.options.languages.includes(language.code)}
+                  onClick={() => toggleLanguage(language.code)}
+                >
+                  {language.name}
+                </button>
+              ))}
+              {!showAllLanguages && LANGUAGES.length > visibleLanguages.length && (
+                <button
+                  type="button"
+                  className="chip chip-outline"
+                  onClick={() => setShowAllLanguages(true)}
+                >
+                  + {LANGUAGES.length - visibleLanguages.length} more
+                </button>
               )}
-            </CardContent>
-          </Card>
-        )}
+            </div>
 
-        {/* OCR Options */}
-        {state.file && !state.isProcessing && state.results.length === 0 && (
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <SettingsIcon sx={{ mr: 1, color: 'secondary.main' }} />
-                <Typography variant="h6">OCR Settings</Typography>
-              </Box>
+            <p className="callout" style={{ marginTop: 'var(--space-4)' }}>
+              The first run downloads the recognition engine and the language data from a public
+              CDN. Your document is not part of that request. After one successful run everything is
+              cached and OCR works with the network off.
+            </p>
+          </section>
 
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <FormControl fullWidth>
-                    <InputLabel>Languages</InputLabel>
-                    <Select
-                      multiple
-                      value={state.options.languages}
-                      label="Languages"
-                      onChange={handleLanguageChange}
-                      renderValue={(selected) => (
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                          {selected.map((value) => {
-                            const lang = getLanguageOptions().find(l => l.code === value);
-                            return (
-                              <Chip
-                                key={value}
-                                label={lang?.name || value}
-                                size="small"
-                                icon={<LanguageIcon />}
-                              />
-                            );
-                          })}
-                        </Box>
-                      )}
-                    >
-                      {getLanguageOptions().map((lang) => (
-                        <MenuItem key={lang.code} value={lang.code}>
-                          {lang.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
+          <section className="section-tight section-ruled">
+            <h2 className="label">
+              Output
+            </h2>
+            <div className="stack-tight">
+              {OUTPUT_FORMATS.map((format) => (
+                <label className="radio" key={format.value}>
+                  <input
+                    type="radio"
+                    name="ocr-output"
+                    value={format.value}
+                    checked={state.options.outputFormat === format.value}
+                    onChange={() =>
+                      setState(prev => ({
+                        ...prev,
+                        options: { ...prev.options, outputFormat: format.value },
+                      }))
+                    }
+                  />
+                  <span className="dot" />
+                  <span>
+                    {format.title} <span className="text-muted">{format.note}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
 
-                <Grid item xs={12} md={6}>
-                  <FormControl fullWidth>
-                    <InputLabel>Output Format</InputLabel>
-                    <Select
-                      value={state.options.outputFormat}
-                      label="Output Format"
-                      onChange={(e) => handleOptionsChange({ outputFormat: e.target.value as any })}
-                    >
-                      <MenuItem value="searchable-pdf">
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <QualityIcon sx={{ mr: 1 }} />
-                          Searchable PDF
-                        </Box>
-                      </MenuItem>
-                      <MenuItem value="text-only">
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <FileIcon sx={{ mr: 1 }} />
-                          Text Only
-                        </Box>
-                      </MenuItem>
-                      {/* "PDF with Text Overlay" was here. The worker only
-                          ever implemented two formats and fell through to the
-                          text branch, so picking it produced a .txt file from
-                          a menu item promising a PDF. */}
-                    </Select>
-                  </FormControl>
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                    {getOutputFormatDescription(state.options.outputFormat)}
-                  </Typography>
-                </Grid>
+            <p className="note" style={{ marginTop: 'var(--space-4)' }}>
+              <InfoIcon size={18} />
+              <span className="text-muted">
+                Best results come from scans at 300 dpi or better. Select every language present in
+                the document - the recognised text goes in as an invisible layer, so the page images
+                you see are untouched.
+              </span>
+            </p>
+          </section>
+        </>
+      )}
 
-                <Grid item xs={12}>
-                  <Alert severity="info">
-                    <Typography variant="body2">
-                      <strong>OCR Tips:</strong><br />
-                      • Best results with high-quality scans (300+ DPI)<br />
-                      • Select all languages present in your document<br />
-                      • Searchable PDF format preserves original appearance<br />
-                      • Processing time depends on document size and complexity
-                    </Typography>
-                  </Alert>
-                </Grid>
+      {state.isProcessing && state.progress && (
+        <ProgressBar progress={state.progress} onCancel={handleCancel} />
+      )}
 
-                <Grid item xs={12}>
-                  <Button
-                    variant="contained"
-                    size="large"
-                    fullWidth
-                    startIcon={<OCRIcon />}
-                    onClick={handleOCR}
-                    disabled={!state.file}
-                    color="secondary"
-                  >
-                    Start OCR Processing
-                  </Button>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-        )}
+      {state.results.length > 0 && (
+        <DownloadButton files={state.results}>
+          <button
+            type="button"
+            className="btn btn-secondary btn-block"
+            onClick={handleReset}
+            style={{ marginTop: 'var(--space-3)' }}
+          >
+            Process another file
+          </button>
+        </DownloadButton>
+      )}
 
-        {/* Progress */}
-        {state.isProcessing && state.progress && (
-          <Box sx={{ mb: 3 }}>
-            <ProgressBar
-              progress={state.progress}
-              onCancel={handleCancel}
-              showCancel={true}
-              showDetails={true}
-              variant="default"
-            />
+      {isEditing && state.file && (
+        <div className="actionbar">
+          <button
+            type="button"
+            className="btn btn-primary btn-block btn-lg"
+            onClick={handleOCR}
+            style={{ marginTop: 0 }}
+          >
+            <OcrIcon size={18} />
+            Recognise text
+            {state.estimatedTime !== null && (
+              <span className="btn-note">{formatTime(state.estimatedTime)}</span>
+            )}
+          </button>
+        </div>
+      )}
 
-            {/* Processing Info */}
-            <Card sx={{ mt: 2 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  OCR Processing Information
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Languages: {state.options.languages.map(lang => {
-                        const langObj = getLanguageOptions().find(l => l.code === lang);
-                        return langObj?.name || lang;
-                      }).join(', ')}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Output: {getOutputFormatDescription(state.options.outputFormat)}
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </Card>
-          </Box>
-        )}
+      <DebugConsole visible={isDebugVisible} logs={state.debugLogs} />
 
-        {/* Results */}
-        {state.results.length > 0 && (
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-                <Typography variant="h6">
-                  OCR Complete
-                </Typography>
-                <Button variant="outlined" onClick={handleReset}>
-                  Process Another File
-                </Button>
-              </Box>
-
-              <List>
-                {state.results.map((result, index) => (
-                  <ListItem key={index} divider>
-                    <ListItemIcon>
-                      <FileIcon color="secondary" />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={result.name}
-                      secondary={
-                        <>
-                          <Typography variant="caption" display="block">
-                            Size: {formatFileSize(result.size)}
-                          </Typography>
-                          <span style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
-                            <Chip
-                              label="OCR Processed"
-                              size="small"
-                              color="secondary"
-                            />
-                            {result.metadata?.averageConfidence && (
-                              <Chip
-                                label={`${Math.round(result.metadata.averageConfidence * 100)}% confidence`}
-                                size="small"
-                                color={result.metadata.averageConfidence > 0.8 ? 'success' : 'warning'}
-                              />
-                            )}
-                          </span>
-                        </>
-                      }
-                    />
-                    <ListItemSecondaryAction>
-                      <DownloadButton
-                        files={[result]}
-                        variant="secondary"
-                        size="small"
-                      />
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                ))}
-              </List>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Debug Console (Toggle with Ctrl+Shift+D) */}
-        {isDebugVisible && (
-          <Card sx={{ mt: 4, bgcolor: '#0d1117', color: '#c9d1d9' }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom sx={{ color: '#fff' }}>
-                Debug Console <Chip label="Ctrl+Shift+D to toggle" size="small" sx={{ ml: 1 }} />
-              </Typography>
-              <Box sx={{
-                maxHeight: 200,
-                overflowY: 'auto',
-                fontFamily: 'monospace',
-                fontSize: '0.8rem',
-                p: 1,
-                bgcolor: 'rgba(255,255,255,0.05)',
-                borderRadius: 1
-              }}>
-                {state.debugLogs.length === 0 ? (
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    No logs yet (start a task to see logs)
-                  </Typography>
-                ) : (
-                  state.debugLogs.map((log, i) => (
-                    <div key={i} style={{ marginBottom: 4 }}>{log}</div>
-                  ))
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-        )}
-        <SeoSection route={route} />
-        <RelatedGuides tag="ocr" limit={2} />
-      </Box>
-    </Layout>
-    <Footer />
-    </>
+      <SeoSection route={route} />
+      <RelatedGuides tag="ocr" limit={2} />
+    </AppShell>
   );
 };
 

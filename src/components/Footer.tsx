@@ -9,60 +9,49 @@
 
 import React from 'react'
 import { Link as RouterLink } from 'react-router-dom'
-import { Box, Container, Divider, Link, Stack, Typography } from '@mui/material'
 import { routes, site } from '@/seo/manifest'
 
 const TOOL_IDS = ['compress', 'merge', 'split', 'ocr']
 const ABOUT_IDS = ['blog', 'privacy', 'contact', 'attribution']
 
-const linkSx = { color: 'text.secondary', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }
-
 const FooterGroup: React.FC<{ title: string; ids: string[] }> = ({ title, ids }) => (
-  <Box>
-    <Typography variant="subtitle2" fontWeight={700} gutterBottom>
-      {title}
-    </Typography>
-    <Stack spacing={0.75}>
-      {ids
-        .map((id) => routes.find((route) => route.id === id))
-        .filter((route): route is NonNullable<typeof route> => Boolean(route))
-        .map((route) => (
-          <Link key={route.id} component={RouterLink} to={route.path} variant="body2" sx={linkSx}>
-            {route.h1}
-          </Link>
-        ))}
-    </Stack>
-  </Box>
+  <nav className="footer-col" aria-label={title}>
+    <h2>{title}</h2>
+    {ids
+      .map((id) => routes.find((route) => route.id === id))
+      .filter((route): route is NonNullable<typeof route> => Boolean(route))
+      .map((route) => (
+        <RouterLink key={route.id} to={route.path}>
+          {route.h1}
+        </RouterLink>
+      ))}
+  </nav>
 )
 
 const Footer: React.FC = () => (
-  <Box component="footer" sx={{ mt: 8, borderTop: 1, borderColor: 'divider', backgroundColor: 'background.paper' }}>
-    <Container maxWidth="lg" sx={{ py: 5 }}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 3, sm: 8 }}>
-        <FooterGroup title="Tools" ids={TOOL_IDS} />
-        <FooterGroup title="Project" ids={ABOUT_IDS} />
-        <Box>
-          <Typography variant="subtitle2" fontWeight={700} gutterBottom>
-            Source
-          </Typography>
-          <Stack spacing={0.75}>
-            <Link href={site.repository} target="_blank" rel="noopener" variant="body2" sx={linkSx}>
-              GitHub repository
-            </Link>
-            <Link href={site.publisher.url} target="_blank" rel="noopener" variant="body2" sx={linkSx}>
-              {site.publisher.name}
-            </Link>
-          </Stack>
-        </Box>
-      </Stack>
+  <footer className="site-footer">
+    <div className="footer-grid">
+      <FooterGroup title="Tools" ids={TOOL_IDS} />
+      <FooterGroup title="Project" ids={ABOUT_IDS} />
 
-      <Divider sx={{ my: 3 }} />
+      <nav className="footer-col" aria-label="Source">
+        <h2>Source</h2>
+        <a href={site.repository} target="_blank" rel="noopener noreferrer">
+          GitHub repository
+        </a>
+        <a href={site.publisher.url} target="_blank" rel="noopener noreferrer">
+          {site.publisher.name}
+        </a>
+      </nav>
 
-      <Typography variant="caption" color="text.secondary">
+      {/* The old line here claimed "no tracking, no data collection", which
+          stopped being true the moment opt-in analytics shipped. The claim
+          that matters and is still exactly true is the one about the files. */}
+      <p className="footer-col footer-note text-muted">
         Your files are processed in your browser and are never uploaded.
-      </Typography>
-    </Container>
-  </Box>
+      </p>
+    </div>
+  </footer>
 )
 
 export default Footer

@@ -34,10 +34,17 @@ class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '2rem', textAlign: 'center' }}>
+        <div className="section">
           <h2>Something went wrong</h2>
-          <p>An error occurred while processing your request.</p>
-          <button onClick={() => this.setState({ hasError: false })}>
+          <p className="text-muted reading">
+            An error occurred while processing your request. Your files were not sent anywhere -
+            there is nothing to clean up, and trying again is safe.
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => this.setState({ hasError: false })}
+          >
             Try again
           </button>
         </div>

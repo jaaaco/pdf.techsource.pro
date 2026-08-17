@@ -1,37 +1,14 @@
+/**
+ * Analytics consent.
+ *
+ * Shown once, on the first visit, and never again after a choice is stored.
+ * Both buttons are equally prominent on purpose - a "Decline" styled as an
+ * afterthought is a dark pattern, and on a site whose entire pitch is
+ * privacy it would be an especially cheap one.
+ */
+
 import React, { useEffect, useState } from 'react'
 import { getConsentPreference, setConsentPreference, type ConsentValue } from '@/lib/consent'
-
-const bannerStyles: React.CSSProperties = {
-  position: 'fixed',
-  bottom: '1.5rem',
-  left: '50%',
-  transform: 'translateX(-50%)',
-  maxWidth: '500px',
-  width: '90%',
-  backgroundColor: '#111827',
-  color: 'white',
-  padding: '1.5rem',
-  borderRadius: '1rem',
-  boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)',
-  zIndex: 10000
-}
-
-const buttonBase: React.CSSProperties = {
-  flex: 1,
-  padding: '0.75rem 1rem',
-  borderRadius: '9999px',
-  border: 'none',
-  fontWeight: 600,
-  cursor: 'pointer',
-  fontSize: '0.95rem'
-}
-
-const descriptionStyles: React.CSSProperties = {
-  color: '#f3f4f6',
-  fontSize: '0.9rem',
-  lineHeight: 1.6,
-  margin: '0.5rem 0 1.5rem'
-}
 
 const ConsentBanner: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false)
@@ -50,27 +27,38 @@ const ConsentBanner: React.FC = () => {
   if (!isVisible) return null
 
   return (
-    <div style={bannerStyles} role="dialog" aria-live="polite" aria-label="Privacy preferences">
-      <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Privacy preferences</h2>
-      <p style={descriptionStyles}>
-        We use Google Analytics through Tag Manager to understand how the toolkit is used so we can improve it.
-        No personal files ever leave your browser. May we enable analytics cookies?
-      </p>
-      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <button
-          type="button"
-          style={{ ...buttonBase, backgroundColor: '#374151', color: 'white' }}
-          onClick={() => handleChoice('denied')}
-        >
-          Decline
-        </button>
-        <button
-          type="button"
-          style={{ ...buttonBase, backgroundColor: '#22c55e', color: '#0f172a' }}
-          onClick={() => handleChoice('granted')}
-        >
-          Allow analytics
-        </button>
+    <div
+      role="dialog"
+      aria-live="polite"
+      aria-label="Privacy preferences"
+      style={{
+        position: 'fixed',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 10000,
+        background: 'var(--color-bg)',
+        color: 'var(--color-text)',
+        borderTop: 'var(--rule) solid var(--color-accent)',
+        padding: 'var(--space-4)',
+        boxShadow: 'var(--shadow-lg)',
+      }}
+    >
+      <div style={{ maxWidth: 'var(--shell-max)', margin: '0 auto' }}>
+        <h2 style={{ margin: '0 0 var(--space-2)', fontSize: 18 }}>Privacy preferences</h2>
+        <p className="text-muted reading" style={{ fontSize: 14 }}>
+          We use Google Analytics through Tag Manager to see which tools get used, so we can improve
+          them. Your files are never part of that - they never leave your browser. May we enable
+          analytics cookies?
+        </p>
+        <div className="cluster">
+          <button type="button" className="btn btn-secondary" onClick={() => handleChoice('denied')}>
+            Decline
+          </button>
+          <button type="button" className="btn btn-primary" onClick={() => handleChoice('granted')}>
+            Allow analytics
+          </button>
+        </div>
       </div>
     </div>
   )

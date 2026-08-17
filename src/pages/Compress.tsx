@@ -1,53 +1,39 @@
 /**
- * Modern Compress Page - PDF compression tool interface
- * Validates: Requirements 3.1, 3.5
+ * Compress - PDF compression tool interface
+ *
+ * The processing pipeline is untouched by the redesign: pages are rasterised
+ * on the main thread (so they render with the fonts the DOM has) and streamed
+ * into a worker that reassembles them into a PDF. Only the surface changed.
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Button,
-  Grid,
-  Alert,
-  Chip,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  ListItemSecondaryAction,
-  IconButton,
-  useTheme,
-  alpha,
-} from '@mui/material';
-import {
-  Compress as CompressIcon,
-  Settings as SettingsIcon,
-  HighQuality as QualityIcon,
-  Computer as ScreenIcon,
-  Delete as DeleteIcon,
-  Description as FileIcon,
-  CloudUpload as UploadIcon,
-} from '@mui/icons-material';
-import Layout from '@/components/Layout';
+import { useLocation } from 'react-router-dom';
+import AppShell from '@/components/AppShell';
+import FileDropzone from '@/components/FileDropzone';
 import ToolHero from '@/components/ToolHero';
 import SeoSection from '@/components/SeoSection';
 import RelatedGuides from '@/components/RelatedGuides';
-import Footer from '@/components/Footer';
-import { getRoute } from '@/seo/manifest';
-import useDocumentMeta from '@/seo/useDocumentMeta';
 import ProgressBar from '@/components/ProgressBar';
 import DownloadButton from '@/components/DownloadButton';
+import DebugConsole from '@/components/DebugConsole';
+import { getRoute } from '@/seo/manifest';
+import useDocumentMeta from '@/seo/useDocumentMeta';
 import { WorkerCommunicator, TaskIdGenerator } from '@/workers/shared/message-router';
 import { ProgressUpdate, ProcessedFile } from '@/workers/shared/progress-protocol';
 import { ErrorHandler } from '@/lib/error-handler';
+import { FileUtils } from '@/lib/file-utils';
 import { useDebugConsole } from '@/hooks/useDebugConsole';
+import {
+  AlertIcon,
+  ArrowRightIcon,
+  CheckIcon,
+  CompressIcon,
+  FileIcon,
+  InfoIcon,
+  PlusIcon,
+  TrashIcon,
+  UploadIcon,
+} from '@/components/icons';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
@@ -67,8 +53,6 @@ interface CompressionOptions {
   optimizeImages?: boolean;
 }
 
-// ... imports
-
 interface CompressionState {
   files: File[];
   options: CompressionOptions;
@@ -79,23 +63,56 @@ interface CompressionState {
   debugLogs: string[];
 }
 
+/**
+ * Figures from the benchmark corpus in the repository, quoted as what they
+ * are: what these presets did to *those* fixtures. They are deliberately not
+ * scaled to the file on screen - the ratio a scan gets and the ratio a Word
+ * export gets differ by two orders of magnitude, so a per-file "estimate"
+ * would be a number this tool cannot honestly predict.
+ */
+const QUALITY_PRESETS = [
+  {
+    value: 'ebook' as const,
+    title: 'E-book · 150 DPI',
+    note: 'Balanced and readable. Benchmark: a 3.95 MB 300 dpi scan came out at 0.47 MB.',
+  },
+  {
+    value: 'screen' as const,
+    title: 'Screen · 72 DPI',
+    note: 'Smallest file, visibly softer at full zoom. Same scan: 0.17 MB, 96% smaller.',
+  },
+];
+
 const stripCompressedSuffix = (name: string) => name.replace(/_compressed(?=\.[^.]+$)/, '');
 
 /**
- * Refuses to hand back a file that got bigger.
+ * Refuses to hand back a file that got bigger, and records what it started as.
  *
  * Compression here works by rasterising each page, which is a large win on a
  * scan and a disaster on a PDF that was already vector text - measured at
  * 110x on a twenty-page Word export. Returning that from a button labelled
  * "Compress" is indefensible, so when the result is not actually smaller the
  * original is returned untouched and the UI says what happened.
+ *
+ * The page-assembly path in the worker emits `originalSize: 0` with a comment
+ * saying the main thread should fill it in - which nothing ever did, so every
+ * result rendered as a bare output size with no before-and-after. The
+ * original bytes are only reachable here, so it is stamped on here.
  */
 const keepSmallerResult = async (
   produced: ProcessedFile,
   sources: File[]
 ): Promise<ProcessedFile> => {
   const source = sources.find(file => file.name === stripCompressedSuffix(produced.name));
-  if (!source || produced.size < source.size) return produced;
+  if (!source) return produced;
+
+  if (produced.size < source.size) {
+    return {
+      ...produced,
+      originalSize: source.size,
+      compressionRatio: (source.size - produced.size) / source.size,
+    };
+  }
 
   return {
     ...produced,
@@ -109,8 +126,8 @@ const keepSmallerResult = async (
 };
 
 const Compress: React.FC = () => {
-  const theme = useTheme();
   const route = getRoute('/compress')!;
+  const location = useLocation();
   useDocumentMeta({
     title: route.title,
     description: route.description,
@@ -181,7 +198,7 @@ const Compress: React.FC = () => {
         });
     },
     onError: (message) => {
-      const rawError = message.payload as any;
+      const rawError = message.payload as { message?: string };
       const errorMsg = rawError.message || JSON.stringify(rawError);
 
       const processedError = ErrorHandler.processError(new Error(errorMsg));
@@ -233,10 +250,18 @@ const Compress: React.FC = () => {
     const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
     setState(prev => ({
       ...prev,
-      files,
+      files: [...prev.files, ...files],
       error: null,
       debugLogs: [...prev.debugLogs, `[${timestamp}] Selected ${files.length} file(s): ${files.map(f => f.name).join(', ')}`]
     }));
+  }, []);
+
+  // Files handed over from the homepage dropzone arrive in router state.
+  useEffect(() => {
+    const handoff = (location.state as { files?: File[] } | null)?.files;
+    if (handoff?.length) handleFilesSelected(handoff);
+    // Only on arrival; re-running on every state change would re-add them.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleOptionsChange = useCallback((newOptions: Partial<CompressionOptions>) => {
@@ -266,110 +291,104 @@ const Compress: React.FC = () => {
     try {
       // Rasterisation runs on the main thread so that pages render with the
       // system fonts the DOM has, rather than whatever a worker can resolve.
-      {
-        addLog('Using Main Thread Rendering Strategy (High Compatibility)');
+      addLog('Using Main Thread Rendering Strategy (High Compatibility)');
 
-        for (let i = 0; i < state.files.length; i++) {
-          const file = state.files[i];
-          const assemblyId = `${taskId}_${i}`;
+      for (let i = 0; i < state.files.length; i++) {
+        const file = state.files[i];
+        const assemblyId = `${taskId}_${i}`;
 
-          // 1. Initialize Assembly in Worker
-          workerCommunicator.sendMessage({
-            type: 'start_assembly',
-            taskId,
-            payload: { assemblyId },
-            timestamp: Date.now()
-          });
+        // 1. Initialize Assembly in Worker
+        workerCommunicator.sendMessage({
+          type: 'start_assembly',
+          taskId,
+          payload: { assemblyId },
+          timestamp: Date.now()
+        });
 
-          // 2. Load PDF
-          addLog(`Loading PDF: ${file.name}`);
-          const arrayBuffer = await file.arrayBuffer();
-          const loadingTask = pdfjsLib.getDocument({
-            data: new Uint8Array(arrayBuffer),
-            cMapUrl: `https://unpkg.com/pdfjs-dist@5.4.449/cmaps/`,
-            cMapPacked: true,
-          });
-          const pdfDoc = await loadingTask.promise;
+        // 2. Load PDF
+        addLog(`Loading PDF: ${file.name}`);
+        const arrayBuffer = await file.arrayBuffer();
+        const loadingTask = pdfjsLib.getDocument({
+          data: new Uint8Array(arrayBuffer),
+          cMapUrl: `https://unpkg.com/pdfjs-dist@5.4.449/cmaps/`,
+          cMapPacked: true,
+        });
+        const pdfDoc = await loadingTask.promise;
 
-          const scale = state.options.quality === 'screen' ? 1.0 : 1.5;
-          const quality = state.options.quality === 'screen' ? 0.6 : 0.8;
+        const scale = state.options.quality === 'screen' ? 1.0 : 1.5;
+        const quality = state.options.quality === 'screen' ? 0.6 : 0.8;
 
-          // 3. Render Pages
-          for (let p = 1; p <= pdfDoc.numPages; p++) {
-            const fileProgress = p / pdfDoc.numPages;
-            const totalProgress = ((i + fileProgress) / state.files.length) * 100;
-            const progressMsg = `Rendering page ${p}/${pdfDoc.numPages}...`;
+        // 3. Render Pages
+        for (let p = 1; p <= pdfDoc.numPages; p++) {
+          const fileProgress = p / pdfDoc.numPages;
+          const totalProgress = ((i + fileProgress) / state.files.length) * 100;
+          const progressMsg = `Rendering page ${p}/${pdfDoc.numPages}...`;
 
-            // Update Progress Manually
-            setState(prev => ({
-              ...prev,
-              progress: {
-                taskId,
-                current: i + 1,
-                total: state.files.length,
-                stage: 'Processing',
-                message: progressMsg,
-                percentage: Math.round(totalProgress)
-              }
-            }));
-
-            // Add to debug log periodically (every 5 pages or first/last) to avoid spam, or just all?
-            // User complained about NO logs. Let's log all for now or every 5.
-            if (p === 1 || p % 5 === 0 || p === pdfDoc.numPages) {
-              addLog(`[Progress ${Math.round(totalProgress)}%] ${progressMsg}`);
-            }
-
-            const page = await pdfDoc.getPage(p);
-            const viewport = page.getViewport({ scale });
-
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const context = canvas.getContext('2d');
-
-            if (!context) throw new Error('Canvas Context Failed');
-
-            await page.render({ canvasContext: context, viewport, canvas }).promise;
-
-            // Convert to blob/bytes
-            const blob = await new Promise<Blob | null>(resolve =>
-              canvas.toBlob(resolve, 'image/jpeg', quality)
-            );
-
-            if (!blob) throw new Error('Image encoding failed');
-            const arrayBuf = await blob.arrayBuffer();
-
-            // 4. Send Page to Worker
-            workerCommunicator.sendMessage({
-              type: 'add_page_image',
+          setState(prev => ({
+            ...prev,
+            progress: {
               taskId,
-              payload: {
-                assemblyId,
-                imageData: new Uint8Array(arrayBuf),
-                width: viewport.width / scale, // PDF units
-                height: viewport.height / scale
-              },
-              timestamp: Date.now()
-            });
+              current: i + 1,
+              total: state.files.length,
+              stage: 'Processing',
+              message: progressMsg,
+              percentage: Math.round(totalProgress)
+            }
+          }));
 
-            // Allow UI to breathe
-            await new Promise(r => setTimeout(r, 0));
+          if (p === 1 || p % 5 === 0 || p === pdfDoc.numPages) {
+            addLog(`[Progress ${Math.round(totalProgress)}%] ${progressMsg}`);
           }
 
-          // 5. Finish Assembly
+          const page = await pdfDoc.getPage(p);
+          const viewport = page.getViewport({ scale });
+
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const context = canvas.getContext('2d');
+
+          if (!context) throw new Error('Canvas Context Failed');
+
+          await page.render({ canvasContext: context, viewport, canvas }).promise;
+
+          // Convert to blob/bytes
+          const blob = await new Promise<Blob | null>(resolve =>
+            canvas.toBlob(resolve, 'image/jpeg', quality)
+          );
+
+          if (!blob) throw new Error('Image encoding failed');
+          const arrayBuf = await blob.arrayBuffer();
+
+          // 4. Send Page to Worker
           workerCommunicator.sendMessage({
-            type: 'finish_assembly',
+            type: 'add_page_image',
             taskId,
             payload: {
               assemblyId,
-              originalFileName: file.name,
-              options: state.options
+              imageData: new Uint8Array(arrayBuf),
+              width: viewport.width / scale, // PDF units
+              height: viewport.height / scale
             },
             timestamp: Date.now()
           });
-        }
-      }
 
+          // Allow UI to breathe
+          await new Promise(r => setTimeout(r, 0));
+        }
+
+        // 5. Finish Assembly
+        workerCommunicator.sendMessage({
+          type: 'finish_assembly',
+          taskId,
+          payload: {
+            assemblyId,
+            originalFileName: file.name,
+            options: state.options
+          },
+          timestamp: Date.now()
+        });
+      }
     } catch (error) {
       console.error('Compression failed:', error);
       addLog(`Error: ${error}`);
@@ -398,28 +417,6 @@ const Compress: React.FC = () => {
     }));
   }, []);
 
-  // ... removeFile, formatFileSize, getQualityDescription ...
-
-  // (Keeping existing formatFileSize and getQualityDescription as they are fine/unchanged logic-wise, 
-  // but I must ensure the replacement block covers up to handleCompress correctly)
-
-  // WAIT, I need to output the REST of the component so the 'return' statement is included
-  // or at least up to where the JSX structure is same.
-  // The tool replaces a block. I will replace from `interface CompressionState` down to `handleCompress` end?
-  // No, `handleCompress` is quite far down.
-  // I will replace `interface CompressionState` through `useEffect`.
-  // Then I will make a separate edit for `handleCompress` and `return`. 
-  // Actually, I can replace the whole logic section if I'm careful.
-
-  // Let's do it in chunks to be safe.
-  // Chunk 1: Interfaces + State + Worker Init + Handlers
-
-  // To avoid `replace_file_content` complexity with large chunks, I'll do:
-  // 1. Types and State initialization.
-  // 2. Worker logic.
-  // 3. Render.
-
-  // Actually, I'll try to replace from line 56 (Interface) to line 178 (handleCancel).
   const removeFile = useCallback((index: number) => {
     setState(prev => ({
       ...prev,
@@ -427,278 +424,194 @@ const Compress: React.FC = () => {
     }));
   }, []);
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const getQualityDescription = (quality: string) => {
-    switch (quality) {
-      case 'screen': return 'Smallest file size, suitable for screen viewing (72 DPI)';
-      case 'ebook': return 'Balanced compression for digital reading (150 DPI)';
-      default: return '';
-    }
-  };
+  const totalSize = state.files.reduce((sum, file) => sum + file.size, 0);
+  const isEditing = !state.isProcessing && state.results.length === 0;
+  const summary =
+    state.files.length > 0
+      ? `${state.files.length} file${state.files.length === 1 ? '' : 's'} · ${FileUtils.formatFileSize(totalSize)}`
+      : null;
 
   return (
-    <>
-    <Layout title="Compress PDF" showBackButton>
-      <Box sx={{ maxWidth: 800, mx: 'auto' }}>
-        {/* ... Header, Error, FileUpload, FileList ... (Keep existing JSX logic) */}
+    <AppShell
+      active="compress"
+      tool={{ title: 'Compress', meta: summary && <span className="tag tag-accent">{summary}</span> }}
+    >
+      <ToolHero
+        route={route}
+        meta={summary && <span className="tag tag-accent desktop-only">{summary}</span>}
+      />
 
-        {/* Header */}
-        <ToolHero route={route} icon={<CompressIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />} />
+      {state.error && (
+        <div className="section-tight">
+          <p className="callout callout-error" style={{ whiteSpace: 'pre-line' }}>
+            <AlertIcon size={18} />
+            <span>{state.error}</span>
+          </p>
+        </div>
+      )}
 
-        {/* Error Display */}
-        {state.error && (
-          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setState(prev => ({ ...prev, error: null }))}>
-            {state.error}
-          </Alert>
-        )}
-
-        {/* File Upload */}
-        {!state.isProcessing && state.results.length === 0 && (
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Box
-                sx={{
-                  border: 2,
-                  borderColor: state.files.length > 0 ? 'success.main' : 'grey.300',
-                  borderStyle: 'dashed',
-                  borderRadius: 2,
-                  p: 4,
-                  textAlign: 'center',
-                  backgroundColor: alpha(theme.palette.primary.main, 0.02),
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease-in-out',
-                  '&:hover': {
-                    backgroundColor: alpha(theme.palette.primary.main, 0.05),
-                    borderColor: 'primary.main',
-                  }
-                }}
-                onClick={() => document.getElementById('file-input')?.click()}
+      {isEditing && (
+        <>
+          {state.files.length === 0 ? (
+            <div className="section-tight section-ruled">
+              <FileDropzone
+                multiple
+                maxFiles={10}
+                onFilesSelected={handleFilesSelected}
+                onValidationError={(message) => setState(prev => ({ ...prev, error: message }))}
               >
-                <input
-                  id="file-input"
-                  type="file"
-                  multiple
-                  accept=".pdf"
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    if (e.target.files) {
-                      handleFilesSelected(Array.from(e.target.files));
-                    }
-                  }}
-                />
-                <UploadIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
-                <Typography variant="h6" gutterBottom>
-                  Drop PDF files here or click to select
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Support for multiple files • Maximum 10 files • Up to 500MB per file
-                </Typography>
-              </Box>
-
-              {/* File List */}
-              {state.files.length > 0 && (
-                <Box sx={{ mt: 3 }}>
-                  <Typography variant="h6" gutterBottom>
-                    Selected Files ({state.files.length})
-                  </Typography>
-                  <List>
-                    {state.files.map((file, index) => (
-                      <ListItem key={index} divider>
-                        <ListItemIcon>
-                          <FileIcon color="primary" />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={file.name}
-                          secondary={formatFileSize(file.size)}
-                        />
-                        <ListItemSecondaryAction>
-                          <IconButton edge="end" onClick={() => removeFile(index)}>
-                            <DeleteIcon />
-                          </IconButton>
-                        </ListItemSecondaryAction>
-                      </ListItem>
-                    ))}
-                  </List>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Compression Options */}
-        {state.files.length > 0 && !state.isProcessing && state.results.length === 0 && (
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <SettingsIcon sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="h6">Compression Settings</Typography>
-              </Box>
-
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <FormControl fullWidth>
-                    <InputLabel>Quality Level</InputLabel>
-                    <Select
-                      value={state.options.quality}
-                      label="Quality Level"
-                      onChange={(e) => handleOptionsChange({ quality: e.target.value as any })}
+                <UploadIcon size={26} style={{ color: 'var(--color-accent)' }} />
+                <span className="dropzone-title">Drop a PDF, or pick one</span>
+                <span className="text-muted" style={{ fontSize: 12 }}>
+                  Up to 500 MB per file · stays on this device
+                </span>
+                <span className="btn btn-primary btn-block" aria-hidden="true">
+                  Select files
+                  <ArrowRightIcon size={18} className="btn-arrow" />
+                </span>
+              </FileDropzone>
+            </div>
+          ) : (
+            <div className="rows">
+              {state.files.map((file, index) => (
+                <div className="row" key={`${file.name}-${index}`}>
+                  <FileIcon size={22} />
+                  <span className="row-body">
+                    <span className="row-name" title={file.name}>{file.name}</span>
+                    <span className="row-meta text-muted">{FileUtils.formatFileSize(file.size)}</span>
+                  </span>
+                  <span className="row-actions">
+                    <button
+                      type="button"
+                      className="btn btn-icon row-remove"
+                      onClick={() => removeFile(index)}
+                      aria-label={`Remove ${file.name}`}
                     >
-                      <MenuItem value="screen">
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <ScreenIcon sx={{ mr: 1 }} />
-                          Screen Quality
-                        </Box>
-                      </MenuItem>
-                      <MenuItem value="ebook">
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <QualityIcon sx={{ mr: 1 }} />
-                          E-book Quality
-                        </Box>
-                      </MenuItem>
-                      {/* "Printer" and "Prepress" used to sit here. Measured
-                          against the benchmark corpus they returned the input
-                          byte-for-byte in 0.0s on every fixture - they routed
-                          to a worker path that does no compression at all.
-                          Offering a preset that does nothing is worse than
-                          offering fewer presets. */}
-                    </Select>
-                  </FormControl>
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                    {getQualityDescription(state.options.quality)}
-                  </Typography>
-                </Grid>
+                      <TrashIcon size={18} />
+                    </button>
+                  </span>
+                </div>
+              ))}
 
-                <Grid item xs={12}>
-                  <Button
-                    variant="contained"
-                    size="large"
-                    fullWidth
-                    startIcon={<CompressIcon />}
-                    onClick={handleCompress}
-                    disabled={state.files.length === 0}
-                  >
-                    Compress {state.files.length} File{state.files.length !== 1 ? 's' : ''}
-                  </Button>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-        )}
+              <AddMoreFiles onFilesSelected={handleFilesSelected} onError={(message) => setState(prev => ({ ...prev, error: message }))} />
+            </div>
+          )}
 
-        {/* Progress */}
-        {state.isProcessing && state.progress && (
-          <ProgressBar
-            progress={state.progress}
-            onCancel={handleCancel}
-            showCancel={true}
-            showDetails={true}
-            variant="default"
-          />
-        )}
+          {state.files.length > 0 && (
+            <section className="section-tight">
+              <h2 className="label">
+                Quality
+              </h2>
 
-        {/* Results */}
-        {state.results.length > 0 && (
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-                <Typography variant="h6">
-                  Compression Complete
-                </Typography>
-                <Button variant="outlined" onClick={handleReset}>
-                  Compress More Files
-                </Button>
-              </Box>
-
-              {state.results.some(result => result.metadata?.unchanged) && (
-                <Alert severity="info" sx={{ mb: 3 }}>
-                  Some of these were already as small as this tool can make them, so you are getting
-                  the original file back rather than a larger one. That is normal for PDFs exported
-                  from a word processor: there are no scanned images to re-encode, and the text is
-                  already compressed.
-                </Alert>
-              )}
-
-              <List>
-                {state.results.map((result, index) => (
-                  <ListItem key={index} divider>
-                    <ListItemIcon>
-                      <FileIcon color="success" />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={result.name}
-                      secondary={
-                        <>
-                          <Typography variant="caption" display="block">
-                            Size: {formatFileSize(result.size)}
-                            {result.originalSize && (
-                              <Chip
-                                label={`${Math.round((1 - result.size / result.originalSize) * 100)}% smaller`}
-                                size="small"
-                                color="success"
-                                sx={{ ml: 1 }}
-                              />
-                            )}
-                          </Typography>
-                        </>
-                      }
+              <div className="options">
+                {QUALITY_PRESETS.map((preset) => (
+                  <label className="option" key={preset.value}>
+                    <input
+                      type="radio"
+                      name="compress-quality"
+                      value={preset.value}
+                      checked={state.options.quality === preset.value}
+                      onChange={() => handleOptionsChange({ quality: preset.value })}
                     />
-                    <ListItemSecondaryAction>
-                      <DownloadButton
-                        files={[result]}
-                        variant="primary"
-                        size="small"
-                      />
-                    </ListItemSecondaryAction>
-                  </ListItem>
+                    <span className="option-mark">
+                      <CheckIcon size={14} />
+                    </span>
+                    <span>
+                      <span className="option-title">{preset.title}</span>
+                      <span className="option-note text-muted">{preset.note}</span>
+                    </span>
+                  </label>
                 ))}
-              </List>
-            </CardContent>
-          </Card>
-        )}
+              </div>
 
-        {/* Debug Console (Toggle with Ctrl+Shift+D) */}
-        {isDebugVisible && (
-          <Card sx={{ mt: 4, bgcolor: '#0d1117', color: '#c9d1d9' }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom sx={{ color: '#fff' }}>
-                Debug Console <Chip label="Ctrl+Shift+D to toggle" size="small" sx={{ ml: 1 }} />
-              </Typography>
-              <Box sx={{
-                maxHeight: 200,
-                overflowY: 'auto',
-                fontFamily: 'monospace',
-                fontSize: '0.8rem',
-                p: 1,
-                bgcolor: 'rgba(255,255,255,0.05)',
-                borderRadius: 1
-              }}>
-                {state.debugLogs.length === 0 ? (
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    No logs yet (start a task to see logs)
-                  </Typography>
-                ) : (
-                  state.debugLogs.map((log, i) => (
-                    <div key={i} style={{ marginBottom: 4 }}>{log}</div>
-                  ))
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-        )}
-        <SeoSection route={route} />
-        <RelatedGuides tag="compress" limit={2} />
-      </Box>
-    </Layout>
-    <Footer />
-    </>
+              <p className="text-muted" style={{ fontSize: 11, margin: 'var(--space-2) 0 0' }}>
+                Numbers come from the public benchmark corpus in the repository, not from a guess.
+              </p>
+
+              <p className="note" style={{ marginTop: 'var(--space-4)' }}>
+                <InfoIcon size={18} />
+                <span className="text-muted">
+                  A Word export comes back untouched - this tool never hands you a bigger file than
+                  you gave it.
+                </span>
+              </p>
+            </section>
+          )}
+        </>
+      )}
+
+      {state.isProcessing && state.progress && (
+        <ProgressBar progress={state.progress} onCancel={handleCancel} />
+      )}
+
+      {state.results.length > 0 && (
+        <>
+          <DownloadButton files={state.results}>
+            <button
+              type="button"
+              className="btn btn-secondary btn-block"
+              onClick={handleReset}
+              style={{ marginTop: 'var(--space-3)' }}
+            >
+              Compress more files
+            </button>
+          </DownloadButton>
+
+          {state.results.some((result) => result.metadata?.unchanged) && (
+            <div className="section-tight">
+              <p className="callout">
+                <strong>Some files came back unchanged.</strong> They were already as small as this
+                tool can make them - normal for PDFs exported from a word processor, where there
+                are no scanned images to re-encode and the text is already compressed. You get your
+                original back rather than a larger file.
+              </p>
+            </div>
+          )}
+        </>
+      )}
+
+      {isEditing && state.files.length > 0 && (
+        <div className="actionbar">
+          <button
+            type="button"
+            className="btn btn-primary btn-block btn-lg"
+            onClick={handleCompress}
+            style={{ marginTop: 0 }}
+          >
+            <CompressIcon size={18} />
+            Compress {state.files.length} file{state.files.length === 1 ? '' : 's'}
+            <span className="btn-note">{FileUtils.formatFileSize(totalSize)}</span>
+          </button>
+        </div>
+      )}
+
+      <DebugConsole visible={isDebugVisible} logs={state.debugLogs} />
+
+      <SeoSection route={route} />
+      <RelatedGuides tag="compress" limit={2} />
+    </AppShell>
   );
 };
+
+/**
+ * The "add another file" row is a dropzone with no chrome, so files can be
+ * dropped onto it as well as picked - and it reuses the same validation as
+ * the main one instead of a bare <input>.
+ */
+const AddMoreFiles: React.FC<{
+  onFilesSelected: (files: File[]) => void;
+  onError: (message: string) => void;
+}> = ({ onFilesSelected, onError }) => (
+  <FileDropzone
+    multiple
+    maxFiles={10}
+    className="row-add"
+    onFilesSelected={onFilesSelected}
+    onValidationError={onError}
+  >
+    <PlusIcon size={16} />
+    Add another file
+  </FileDropzone>
+);
 
 export default Compress;
