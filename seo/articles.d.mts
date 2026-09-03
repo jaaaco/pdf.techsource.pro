@@ -13,3 +13,4 @@ export interface Article {
 export declare const articlePath: (locale: string, slug: string) => string
 export declare const toArticle: (filePath: string, source: string) => Article | null
 export declare const byDateDesc: (a: Article, b: Article) => number
+export declare const pickGuides: (articles: Article[], tag: string | undefined, limit: number) => Article[]

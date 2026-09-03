@@ -5,7 +5,7 @@ date: 2026-08-15
 updated: 2026-08-15
 locale: en
 slug: pdf-compression-benchmarks
-tags: [benchmarks, compress]
+tags: [benchmarks, compress, ocr]
 ---
 
 "Reduce your PDF size by up to 90%." Every tool in this category says some

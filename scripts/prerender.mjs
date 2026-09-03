@@ -24,7 +24,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { marked } from 'marked'
 
-import { toArticle, byDateDesc } from '../seo/articles.mjs'
+import { toArticle, byDateDesc, pickGuides } from '../seo/articles.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const DIST = join(ROOT, 'dist')
@@ -240,8 +240,7 @@ const guidesFor = (page) => {
 
   if (page.id === 'blog') return localeArticles
 
-  const tagged = localeArticles.filter((article) => article.tags.includes(page.id))
-  return (tagged.length > 0 ? tagged : localeArticles).slice(0, 3)
+  return pickGuides(localeArticles, page.id, 3)
 }
 
 const buildBody = (page) => {

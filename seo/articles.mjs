@@ -46,3 +46,22 @@ export const toArticle = (filePath, source) => {
 
 /** Newest first, with undated drafts last. */
 export const byDateDesc = (a, b) => (b.date || '').localeCompare(a.date || '')
+
+/**
+ * Article links shown beside a tool, on the homepage, and in the prerendered
+ * HTML for both. It lives here because the React component and the prerender
+ * script each used to carry their own copy, and they drifted: a change to one
+ * left the crawler seeing a different set of links than the reader.
+ *
+ * Tagged articles come first, then the newest of anything fills the remaining
+ * slots. Preferring rather than filtering matters - the previous all-or-nothing
+ * rule meant a single tagged article *shrank* the section instead of leading
+ * it, which is backwards when these links are the only internal path a crawler
+ * has to the guides.
+ */
+export const pickGuides = (articles, tag, limit) => {
+  if (!tag) return articles.slice(0, limit)
+  const tagged = articles.filter((article) => article.tags.includes(tag))
+  const rest = articles.filter((article) => !article.tags.includes(tag))
+  return [...tagged, ...rest].slice(0, limit)
+}

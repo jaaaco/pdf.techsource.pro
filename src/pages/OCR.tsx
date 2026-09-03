@@ -494,7 +494,7 @@ const OCR: React.FC = () => {
       <DebugConsole visible={isDebugVisible} logs={state.debugLogs} />
 
       <SeoSection route={route} />
-      <RelatedGuides tag="ocr" limit={2} />
+      <RelatedGuides tag="ocr" limit={3} />
     </AppShell>
   );
 };

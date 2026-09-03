@@ -13,7 +13,8 @@
 
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { articlesForLocale, type Article } from '@/seo/manifest'
+import { articlesForLocale } from '@/seo/manifest'
+import { pickGuides } from '@seo/articles.mjs'
 import { ArrowRightIcon, ChevronRightIcon } from './icons'
 
 interface RelatedGuidesProps {
@@ -24,13 +25,6 @@ interface RelatedGuidesProps {
   locale?: string
 }
 
-const pickGuides = (locale: string, tag: string | undefined, limit: number): Article[] => {
-  const all = articlesForLocale(locale)
-  const tagged = tag ? all.filter((article) => article.tags.includes(tag)) : all
-  // Fall back to the newest articles rather than rendering nothing: an empty
-  // section on a tool page is worse than a slightly less relevant link.
-  return (tagged.length > 0 ? tagged : all).slice(0, limit)
-}
 
 const RelatedGuides: React.FC<RelatedGuidesProps> = ({
   tag,
@@ -38,7 +32,7 @@ const RelatedGuides: React.FC<RelatedGuidesProps> = ({
   title = 'Guides and benchmarks',
   locale = 'en',
 }) => {
-  const guides = pickGuides(locale, tag, limit)
+  const guides = pickGuides(articlesForLocale(locale), tag, limit)
   if (guides.length === 0) return null
 
   return (

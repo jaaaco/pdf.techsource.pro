@@ -1,3 +1,16 @@
+# Consolidated size-target guides.
+#
+# Five near-identical pages once covered "compress to 50 KB", "to 100 KB", "to
+# 500 KB" and "to 1 MB", all carrying the same benchmark table under a
+# different number. Google indexed exactly one of them and left the rest as
+# "URL is unknown to Google" or "Discovered - currently not indexed", which is
+# the duplicate filter doing its job. The survivor now answers every one of
+# those targets in one table, and the other four point at it.
+/blog/compress-pdf-to-100kb-free-offline                       /blog/compress-pdf-to-100kb-free-offline-without-losing   301!
+/blog/compress-pdf-to-1mb-free-online-offline                  /blog/compress-pdf-to-100kb-free-offline-without-losing   301!
+/blog/compress-pdf-to-50kb-offline-online-free                 /blog/compress-pdf-to-100kb-free-offline-without-losing   301!
+/blog/compress-pdf-to-500kb-online-free-offline-without-losing /blog/compress-pdf-to-100kb-free-offline-without-losing   301!
+
 # SPA fallback.
 #
 # Every real route is prerendered to its own index.html by scripts/prerender.mjs,
