@@ -58,6 +58,55 @@ const rows = (await readFile(KEYWORDS, 'utf8'))
  */
 const INTENT_WEIGHT = { privacy: 40, 'how-to': 30, comparison: 20, tool: 10, informational: 0 }
 
+/**
+ * The topic a phrase belongs to, as Google sees it rather than as a string
+ * comparison sees it.
+ *
+ * This exists because the first five articles this script wrote were the same
+ * article. "compress pdf to 50kb offline", "...to 100kb...", "...to 500kb..."
+ * and "...to 1mb..." are four different strings and one search intent, and the
+ * scoring below happened to rank that shape highest: +25 for the offline
+ * wording and +20 for a size figure stack into a peak that dozens of phrases
+ * sit on. The only guard was a slug collision check, which never fires between
+ * two different numbers, so the script kept walking down the same hill.
+ *
+ * Search Console then confirmed the cost: of those five pages, one was
+ * indexed, three came back "URL is unknown to Google", one "Discovered -
+ * currently not indexed". Near-duplicates do not each get a chance; they split
+ * one page's worth of signal and Google keeps the best guess.
+ */
+// Polish terms sit alongside the English ones rather than in a separate table:
+// without them every Polish phrase fell through to "other", which would have
+// left the whole locale sharing five buckets and blocking itself after five
+// pages. Order matters - "zmniejsz skan" is a compression job, not an OCR one.
+const OPERATIONS = [
+  [/\b(compress|reduce|shrink|smaller|size|zmniejsz|skompresuj|kompresj\w*|rozmiar|waga|wagi)\b/, 'compress'],
+  [/\b(merge|combine|join|po[lł][aą]cz\w*|scal\w*|z[lł][aą]cz\w*)\b/, 'merge'],
+  [/\b(split|separate|divide|podziel\w*|rozdziel\w*|roz[lł][aą]cz\w*)\b/, 'split'],
+  [/\b(ocr|searchable|recognise|recognize|scan|skan\w*|rozpozna\w*|przeszukiwaln\w*)\b/, 'ocr'],
+  [/\b(extract|pull|save|wyodr[eę]bnij|wyci[aą]gnij|wydziel\w*|zapisz)\b/, 'extract'],
+]
+
+const FACETS = [
+  [/\b\d+\s?(kb|mb)\b/, 'size-target'],
+  [/\b(without uploading|no upload|offline|locally|privacy|bez wysy|lokalnie)\b/, 'local'],
+  [/\b(vs|versus|compared|alternative|better than)\b/, 'comparison'],
+  [/\b(how|jak)\b/, 'how-to'],
+]
+
+const firstMatch = (table, phrase, fallback) =>
+  table.find(([pattern]) => pattern.test(phrase))?.[1] ?? fallback
+
+/**
+ * One page per cluster. Not a scoring penalty - an exclusion, because a
+ * penalty just delays the duplicate until the alternatives run out, and there
+ * are 2000 phrases in the harvest to run through first.
+ */
+const clusterOf = (row) => {
+  const phrase = row.phrase.toLowerCase()
+  return `${firstMatch(OPERATIONS, phrase, 'other')}:${firstMatch(FACETS, phrase, 'general')}`
+}
+
 const score = (row) => {
   let value = INTENT_WEIGHT[row.intent] ?? 0
   if (/without|offline|no upload|bez wysy|lokalnie|locally/.test(row.phrase)) value += 25
@@ -72,21 +121,51 @@ const score = (row) => {
 
 const slugify = (phrase) =>
   phrase
+    // NFD splits a letter from its accent, which handles ąćęńóśźż. It does
+    // nothing for ł, which is its own letter rather than l plus a mark, so
+    // "wysyłania" came out as "wysy-ania". Polish routes are next; catch it
+    // here rather than in a published URL.
+    .replace(/ł/g, 'l')
+    .replace(/Ł/g, 'L')
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/gi, '-')
     .replace(/^-|-$/g, '')
     .toLowerCase()
-    .slice(0, 70)
+    // Cut on a word boundary. A hard slice produced
+    // "...make-a-searchable-pdf-withou", which is a URL a human reads as a
+    // typo and never re-types.
+    .replace(/^(.{0,70})(?:-.*)?$/s, '$1')
+
+/**
+ * Clusters already answered by a page. A consolidated phrase counts as taken:
+ * its page was folded into another one, and writing it again would undo that.
+ */
+const covered = new Set(
+  rows.filter((row) => row.status === 'published' || row.status === 'consolidated').map(clusterOf),
+)
 
 const candidates = rows
   .filter((row) => row.status === 'new')
   .filter((row) => !wantedLang || row.lang === wantedLang)
   .filter((row) => !existsSync(join(ROOT, `content/${row.lang}/${slugify(row.phrase)}.md`)))
+  .filter((row) => !covered.has(clusterOf(row)))
   .sort((a, b) => score(b) - score(a))
 
 if (candidates.length === 0) {
-  await log(JOB, 'no unused phrases left - run automation/keyword-harvest.mjs')
+  // Two very different reasons to stop, and confusing them sends the next
+  // session off debugging the harvester. Clusters run out long before phrases
+  // do: there are only so many operation/facet pairs, which is the point -
+  // this pipeline is capped at one page per intent by design, not starved.
+  const unusedClusters = new Set(rows.filter((row) => row.status === 'new').map(clusterOf))
+  const remaining = [...unusedClusters].filter((key) => !covered.has(key))
+  await log(
+    JOB,
+    remaining.length === 0
+      ? `every cluster already has a page (${covered.size} covered) - nothing to write until the harvest turns up a new intent, ` +
+          'or until a cluster is deliberately reopened'
+      : 'no unused phrases left - run automation/keyword-harvest.mjs',
+  )
   process.exit(0)
 }
 
@@ -94,7 +173,7 @@ const chosen = candidates[0]
 const slug = slugify(chosen.phrase)
 const outPath = join(ROOT, `content/${chosen.lang}/${slug}.md`)
 
-await log(JOB, `chosen "${chosen.phrase}" (${chosen.lang}, ${chosen.intent}, score ${score(chosen)})`)
+await log(JOB, `chosen "${chosen.phrase}" (${chosen.lang}, ${chosen.intent}, cluster ${clusterOf(chosen)}, score ${score(chosen)})`)
 
 /* ----------------------------------------------------------- measured data */
 
@@ -186,7 +265,14 @@ await log(JOB, 'calling claude...')
 
 let draft
 try {
-  const { stdout } = await run(CLAUDE, ['-p', prompt], {
+  // --tools "" strips the subprocess of every tool, because this call wants a
+  // string on stdout and nothing else. Without it the model also *wrote the
+  // article to disk itself*, next to returning it: a --dry-run left files
+  // behind while logging "nothing written", and a draft rejected for bad front
+  // matter stayed on disk because the reject path never knew a file existed.
+  // Both then changed which phrase the next run picked, through the
+  // existsSync() filter above - a generator quietly steering itself.
+  const { stdout } = await run(CLAUDE, ['-p', prompt, '--tools', ''], {
     cwd: ROOT,
     maxBuffer: 10 * 1024 * 1024,
     timeout: 600000,
@@ -212,7 +298,13 @@ const reject = async (reason) => {
 const { data, body } = parseFrontMatter(draft)
 
 if (!data.title || !data.description || !data.slug) {
-  await reject('front matter is missing title, description or slug')
+  // Show what actually arrived. A rejection reading only "front matter is
+  // missing" is unactionable: the interesting cases are a preamble line before
+  // the ---, a fence the unwrapper above did not match, or a model answering
+  // in prose. Without the head of the draft that is a guessing game.
+  const head = draft.slice(0, 300).replace(/\n/g, '\\n')
+  const present = Object.keys(data).join(', ') || 'nothing parsed'
+  await reject(`front matter is missing title, description or slug (parsed: ${present})\n\nstarts with: ${head}`)
 }
 if (data.slug !== slug) await reject(`front matter slug "${data.slug}" does not match "${slug}"`)
 if (String(data.title).length > 70) await reject(`title is ${String(data.title).length} characters`)
