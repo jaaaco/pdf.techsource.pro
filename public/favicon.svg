@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="PDF Toolkit">
+  <!--
+    Modernist mark: a sheet with the top-right corner cut away. Two rules stand
+    in for content. Nothing here is thinner than 3px at the 32px grid, so the
+    whole thing survives being scaled down to a 16px browser tab - which is the
+    only size that actually matters for a favicon.
+  -->
+  <path d="M5 2h14l8 8v20H5z" fill="#ec3013"/>
+  <path d="M19 2l8 8h-8z" fill="#ae1800"/>
+  <rect x="9" y="17" width="14" height="3" fill="#f3f2f2"/>
+  <rect x="9" y="23" width="9" height="3" fill="#f3f2f2"/>
+</svg>

@@ -2182,3 +2182,7 @@
 {"phrase":"ocr pdf tool","lang":"pl","source":"google-suggest","intent":"informational","firstSeen":"2026-09-07","status":"new"}
 {"phrase":"compress pdf 1 mb","lang":"en","source":"duckduckgo","intent":"informational","firstSeen":"2026-09-14","status":"new"}
 {"phrase":"compress pdf 500kb","lang":"en","source":"duckduckgo","intent":"informational","firstSeen":"2026-09-14","status":"new"}
+{"phrase":"reduce pdf file size to less than 2 mb","lang":"en","source":"duckduckgo","intent":"informational","firstSeen":"2026-09-21","status":"new"}
+{"phrase":"extract pages from pdf and create new pdf","lang":"en","source":"duckduckgo","intent":"informational","firstSeen":"2026-09-21","status":"new"}
+{"phrase":"polacz pliki pdf free","lang":"pl","source":"duckduckgo","intent":"tool","firstSeen":"2026-09-21","status":"new"}
+{"phrase":"ocr pdf 24 tools","lang":"pl","source":"duckduckgo","intent":"informational","firstSeen":"2026-09-21","status":"new"}

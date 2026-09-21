@@ -73,6 +73,17 @@ if (!template.includes('<div id="root"></div>')) {
   process.exit(1)
 }
 
+// The strips above are plain regexes over the whole head, so a stray tag name
+// inside a comment makes one of them swallow everything up to the real closing
+// tag. That happened once and took the icon links with it, which nothing else
+// would have noticed: the build still succeeds and every page still renders,
+// just with no favicon anywhere. Icons are inherited from the template, so
+// assert they survived.
+if (!template.includes('rel="icon"')) {
+  console.error('[prerender] the template lost its icon links - check for a tag name inside a head comment')
+  process.exit(1)
+}
+
 /* ---------------------------------------------------------------- content */
 
 const readArticles = async () => {
@@ -143,9 +154,14 @@ const buildHead = (page) => {
     `<meta property="og:description" content="${escapeHtml(page.description)}" />`,
     `<meta property="og:url" content="${url}" />`,
     `<meta property="og:locale" content="${page.locale === 'pl' ? 'pl_PL' : 'en_US'}" />`,
-    `<meta name="twitter:card" content="summary" />`,
+    `<meta property="og:image" content="${absolute('/og.png')}" />`,
+    `<meta property="og:image:width" content="1200" />`,
+    `<meta property="og:image:height" content="630" />`,
+    `<meta property="og:image:alt" content="${escapeHtml(site.name)} - PDF tools that never upload your file" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${escapeHtml(page.title)}" />`,
     `<meta name="twitter:description" content="${escapeHtml(page.description)}" />`,
+    `<meta name="twitter:image" content="${absolute('/og.png')}" />`,
     `<meta name="robots" content="index, follow, max-image-preview:large" />`,
   ]
 

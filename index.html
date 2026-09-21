@@ -2,7 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <!--
+      Icons live here rather than in scripts/prerender.mjs. That script strips
+      only the title, description and keywords tags from this template, so
+      everything else in this head is inherited by every prerendered page.
+      Social tags are the opposite case - they differ per page, so they are
+      emitted there, not here.
+
+      Do not write a literal title tag into a comment in this head. The strip is
+      a plain regex and will match from the comment to the real closing tag,
+      silently deleting whatever sits between the two. It ate these icons once.
+    -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f3f2f2" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#171615" media="(prefers-color-scheme: dark)" />
