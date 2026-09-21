@@ -2,7 +2,7 @@
 title: OCR that looked like it worked
 description: Five bugs in a browser OCR pipeline, every one of which produced a plausible success instead of an error. Measured before and after, with the code paths named.
 date: 2026-09-14
-updated: 2026-09-14
+updated: 2026-09-21
 locale: en
 slug: ocr-that-looked-like-it-worked
 tags: [ocr, benchmarks, privacy]
@@ -158,3 +158,31 @@ rather than discovering the mismatch fifteen minutes later at write time.
 
 The corpus, the harness and the measurements are in the repository, and the current
 numbers are on the [benchmarks page](/blog/pdf-compression-benchmarks).
+
+## Who writes this site
+
+Worth saying plainly, because it is the same lesson wearing different clothes. Most of
+the writing here is drafted by an agent: it harvests the search phrases, writes the
+page and opens the commit, and a person reviews before anything ships. This post-mortem
+was drafted the same way, from the commit history and the benchmark output, then edited
+by hand.
+
+That arrangement only survives because of a guard built on the same idea as the harness
+above. The generator is handed the measured figures and nothing else, and the script
+that runs it throws the draft away if the body quotes a percentage outside that set:
+
+```js
+const invented = quoted.filter((value) => !allowedNumbers.has(value))
+if (invented.length > 0) {
+  await reject(`quotes percentages that were never measured: ${invented.join(', ')}%`)
+}
+```
+
+It rejects "up to N" phrasing too, because that is the shape a number takes when it has
+stopped reporting and started selling.
+
+The reason for the guard is the reason for this whole article. A language model will
+produce a plausible statistic exactly the way the OCR pipeline produced a plausible
+PDF: quickly, with no error, and indistinguishable from the real thing right up until
+somebody checks it against ground truth. Same failure mode, same fix. Measure the
+output, and refuse to ship what you did not measure.
