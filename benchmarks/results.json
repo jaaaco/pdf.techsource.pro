@@ -1,7 +1,7 @@
 {
-  "measuredAt": "2026-08-15",
+  "measuredAt": "2026-09-27",
   "base": "https://pdf.techsource.pro",
-  "chrome": "Chrome/151.0.7922.138",
+  "chrome": "Chrome/154.0.8037.58",
   "results": [
     {
       "tool": "compress",
@@ -16,7 +16,7 @@
           "pagesLost": 0,
           "ratio": 0.0376,
           "savedPercent": 96.2,
-          "elapsedMs": 1012
+          "elapsedMs": 1009
         },
         {
           "preset": "ebook",
@@ -27,7 +27,7 @@
           "pagesLost": 0,
           "ratio": 0.1974,
           "savedPercent": 80.3,
-          "elapsedMs": 1011
+          "elapsedMs": 1007
         }
       ]
     },
@@ -38,24 +38,24 @@
         {
           "preset": "screen",
           "inputBytes": 649193,
-          "outputBytes": 87776,
+          "outputBytes": 87774,
           "inputPages": 5,
           "outputPages": 5,
           "pagesLost": 0,
           "ratio": 0.1352,
           "savedPercent": 86.5,
-          "elapsedMs": 1013
+          "elapsedMs": 1007
         },
         {
           "preset": "ebook",
           "inputBytes": 649193,
-          "outputBytes": 252760,
+          "outputBytes": 252758,
           "inputPages": 5,
           "outputPages": 5,
           "pagesLost": 0,
           "ratio": 0.3893,
           "savedPercent": 61.1,
-          "elapsedMs": 1012
+          "elapsedMs": 1008
         }
       ]
     },
@@ -72,7 +72,7 @@
           "pagesLost": 0,
           "ratio": 0.0424,
           "savedPercent": 95.8,
-          "elapsedMs": 2011
+          "elapsedMs": 3011
         },
         {
           "preset": "ebook",
@@ -83,7 +83,7 @@
           "pagesLost": 0,
           "ratio": 0.1194,
           "savedPercent": 88.1,
-          "elapsedMs": 2012
+          "elapsedMs": 2009
         }
       ]
     },
@@ -100,7 +100,7 @@
           "pagesLost": 0,
           "ratio": 0.0553,
           "savedPercent": 94.5,
-          "elapsedMs": 1010
+          "elapsedMs": 1006
         },
         {
           "preset": "ebook",
@@ -111,7 +111,7 @@
           "pagesLost": 0,
           "ratio": 0.15,
           "savedPercent": 85,
-          "elapsedMs": 1012
+          "elapsedMs": 2007
         }
       ]
     },
@@ -128,7 +128,7 @@
           "pagesLost": 0,
           "ratio": 1,
           "savedPercent": 0,
-          "elapsedMs": 1012
+          "elapsedMs": 1005
         },
         {
           "preset": "ebook",
@@ -139,7 +139,7 @@
           "pagesLost": 0,
           "ratio": 1,
           "savedPercent": 0,
-          "elapsedMs": 1011
+          "elapsedMs": 1005
         }
       ]
     },
@@ -148,13 +148,25 @@
       "file": "scan-150dpi-5p.pdf",
       "runs": [
         {
+          "outputFormat": "searchable-pdf",
           "inputBytes": 649193,
-          "outputBytes": 683194,
+          "outputBytes": 683197,
           "inputPages": 5,
           "outputPages": 5,
           "pagesLost": 0,
           "outputMimeType": "application/pdf",
-          "elapsedMs": 5034,
+          "elapsedMs": 5016,
+          "wordRecall": 1
+        },
+        {
+          "outputFormat": "text-only",
+          "inputBytes": 649193,
+          "outputBytes": 3928,
+          "inputPages": 5,
+          "outputPages": null,
+          "pagesLost": null,
+          "outputMimeType": "text/plain",
+          "elapsedMs": 3014,
           "wordRecall": 1
         }
       ]
@@ -164,13 +176,25 @@
       "file": "scan-300dpi-10p.pdf",
       "runs": [
         {
+          "outputFormat": "searchable-pdf",
           "inputBytes": 4136509,
           "outputBytes": 4196222,
           "inputPages": 10,
           "outputPages": 10,
           "pagesLost": 0,
           "outputMimeType": "application/pdf",
-          "elapsedMs": 5036,
+          "elapsedMs": 5016,
+          "wordRecall": 1
+        },
+        {
+          "outputFormat": "text-only",
+          "inputBytes": 4136509,
+          "outputBytes": 7879,
+          "inputPages": 10,
+          "outputPages": null,
+          "pagesLost": null,
+          "outputMimeType": "text/plain",
+          "elapsedMs": 5015,
           "wordRecall": 1
         }
       ]
@@ -180,13 +204,25 @@
       "file": "scan-clean-300dpi-3p.pdf",
       "runs": [
         {
+          "outputFormat": "searchable-pdf",
           "inputBytes": 971666,
           "outputBytes": 995048,
           "inputPages": 3,
           "outputPages": 3,
           "pagesLost": 0,
           "outputMimeType": "application/pdf",
-          "elapsedMs": 2024,
+          "elapsedMs": 2014,
+          "wordRecall": 1
+        },
+        {
+          "outputFormat": "text-only",
+          "inputBytes": 971666,
+          "outputBytes": 2365,
+          "inputPages": 3,
+          "outputPages": null,
+          "pagesLost": null,
+          "outputMimeType": "text/plain",
+          "elapsedMs": 2009,
           "wordRecall": 1
         }
       ]

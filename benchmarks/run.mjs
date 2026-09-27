@@ -184,12 +184,40 @@ const clickByText = async (page, pattern) => {
   if (!clicked) throw new Error(`no enabled button matching ${pattern}`)
 }
 
-/** MUI renders its Select as a listbox in a portal, so this is two clicks. */
-const chooseSelectValue = async (page, value) => {
-  await page.click('[role="combobox"]')
-  await page.waitForSelector(`li[data-value="${value}"]`, { timeout: 10000 })
-  await page.click(`li[data-value="${value}"]`)
-  await new Promise((done) => setTimeout(done, 200))
+/**
+ * Picks a value from one of the option groups.
+ *
+ * Both the compress quality and the OCR output format used to be MUI Selects,
+ * driven here by clicking the portal listbox. The Modernist rebuild on
+ * 2026-08-17 turned both into plain radio groups and nothing here followed,
+ * so every compress run since has failed on `[role="combobox"]` and every OCR
+ * run on the old button label. The numbers in results.json stayed at
+ * 2026-08-15 and went on looking current for six weeks.
+ *
+ * These are controlled React inputs, so clicking the DOM node is what fires
+ * the state change; assigning `checked` is not. The wait afterwards is the
+ * assertion that the click landed - without it a renamed value fails silently
+ * again, just later and less visibly.
+ */
+const chooseRadio = async (page, name, value) => {
+  const picked = await page.evaluate(
+    (group, wanted) => {
+      const input = document.querySelector(`input[name="${group}"][value="${wanted}"]`)
+      if (!input) return false
+      input.click()
+      return true
+    },
+    name,
+    value,
+  )
+  if (!picked) throw new Error(`no "${name}" radio with value "${value}"`)
+  await page.waitForFunction(
+    (group, wanted) =>
+      document.querySelector(`input[name="${group}"][value="${wanted}"]`)?.checked,
+    { timeout: 5000 },
+    name,
+    value,
+  )
 }
 
 const uploadFiles = async (page, paths) => {
@@ -208,21 +236,43 @@ const uploadFiles = async (page, paths) => {
  * whole 15-minute ceiling before the run gave up, and reported it as a
  * timeout. A failure is a result too - it just needs to be recorded as one.
  */
+/**
+ * Bounds a page call in wall-clock time.
+ *
+ * JOB_TIMEOUT_MS on its own does not: the deadline is only re-checked after
+ * the await returns, so a page that stops answering leaves the poll parked on
+ * an evaluate that never settles, and the run waits forever. One run sat for
+ * four hours that way. The machine was awake throughout and it has not
+ * reproduced since, so this is a bound rather than a diagnosis - but a
+ * benchmark that can hang indefinitely is useless unattended either way.
+ */
+const withDeadline = (promise, ms, what) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${what} did not answer within ${ms}ms`)), ms),
+    ),
+  ])
+
 const captureResult = async (page, startedAt) => {
   const deadline = Date.now() + JOB_TIMEOUT_MS
   let ready = false
 
   while (Date.now() < deadline) {
-    const state = await page.evaluate(() => ({
-      // The download button is the unambiguous success signal. Matching on
-      // body text caught the progress bar's own "Complete" stage label a
-      // beat before the result panel existed.
-      ready: [...document.querySelectorAll('button')].some(
-        (element) => /download/i.test(element.textContent ?? '') && !element.disabled,
-      ),
-      failed: document.querySelector('.MuiAlert-standardError')?.textContent ?? null,
-      raw: window.__benchWorkerErrors.at(-1) ?? null,
-    }))
+    const state = await withDeadline(
+      page.evaluate(() => ({
+        // The download button is the unambiguous success signal. Matching on
+        // body text caught the progress bar's own "Complete" stage label a
+        // beat before the result panel existed.
+        ready: [...document.querySelectorAll('button')].some(
+          (element) => /download/i.test(element.textContent ?? '') && !element.disabled,
+        ),
+        failed: document.querySelector('.MuiAlert-standardError')?.textContent ?? null,
+        raw: window.__benchWorkerErrors.at(-1) ?? null,
+      })),
+      30000,
+      'the page',
+    )
 
     if (state.failed) {
       const shown = state.failed.trim()
@@ -256,7 +306,11 @@ const captureResult = async (page, startedAt) => {
   })
 
   const bytes = Buffer.from(captured.base64, 'base64')
-  const outputPath = join(downloadDir, `out-${Date.now()}.pdf`)
+  // Name the file after what actually came back. Writing a .txt to a .pdf
+  // path is how the text-only mode used to surface: as a pdfjs parse error
+  // rather than as the plain text it was.
+  const extension = captured.mimeType === 'application/pdf' ? 'pdf' : 'txt'
+  const outputPath = join(downloadDir, `out-${Date.now()}.${extension}`)
   await writeFile(outputPath, bytes)
 
   // The OCR page offers three output formats but the worker only implements
@@ -343,7 +397,7 @@ const benchmarkCompress = async (file) => {
     const page = await newPage('/compress')
     try {
       await uploadFiles(page, [inputPath])
-      await chooseSelectValue(page, preset)
+      await chooseRadio(page, 'compress-quality', preset)
       const startedAt = Date.now()
       await clickByText(page, /compress \d+ file/)
       const { elapsedMs, outputBytes, outputPath } = await captureResult(page, startedAt)
@@ -384,6 +438,36 @@ const benchmarkCompress = async (file) => {
   return { tool: 'compress', file, runs }
 }
 
+/*
+ * The product offers two OCR outputs and both are worth measuring, for
+ * different reasons. The searchable PDF is where the whole pipeline can fail
+ * silently - recognition can be perfect while the text layer comes out empty,
+ * which is exactly what happened here for months. Plain text skips the PDF
+ * writer entirely, so comparing the two separates "recognition is wrong" from
+ * "everything after recognition is wrong".
+ *
+ * Measuring only the default hid that distinction, and the published article
+ * quoted a text-only figure that no run in results.json could reproduce.
+ */
+const OCR_OUTPUTS = [
+  { value: 'searchable-pdf', label: 'pdf' },
+  { value: 'text-only', label: 'text' },
+]
+
+/**
+ * Scores one OCR output against the ground truth. A searchable PDF is read
+ * back through pdfjs, so what gets measured is the embedded text layer rather
+ * than anything a viewer reconstructs; plain text is read as it stands. Both
+ * go through the same recall function, so the two columns stay comparable.
+ */
+const scoreOcrOutput = async (outputPath, mimeType, truth) => {
+  const actual =
+    mimeType === 'application/pdf'
+      ? await extractText(outputPath).catch(() => '')
+      : await readFile(outputPath, 'utf8').catch(() => '')
+  return wordRecall(truth, actual)
+}
+
 const benchmarkOcr = async (file) => {
   const inputPath = join(CORPUS, file)
   const truthPath = join(TRUTH, file.replace(/\.pdf$/, '.txt'))
@@ -391,62 +475,76 @@ const benchmarkOcr = async (file) => {
 
   const { size: inputBytes } = await stat(inputPath)
   const inputPages = await countPages(inputPath)
-  const page = await newPage('/ocr')
+  const truth = await readFile(truthPath, 'utf8')
+  const runs = []
 
-  try {
-    await uploadFiles(page, [inputPath])
-    const startedAt = Date.now()
-    await clickByText(page, /start ocr/)
-    const { elapsedMs, outputBytes, outputPath, outputMimeType } = await captureResult(
-      page,
-      startedAt,
-    )
+  for (const output of OCR_OUTPUTS) {
+    // A fresh page per output format, for the same reason compress uses one
+    // per preset: a second run on a dirty page measures the first run's state.
+    const page = await newPage('/ocr')
 
-    // Same reasoning as compress: an OCR pass that quietly loses pages would
-    // otherwise post a respectable recall number on the pages it kept.
-    const outputPages = await countPages(outputPath).catch(() => null)
-    const truth = await readFile(truthPath, 'utf8')
-    const actual = await extractText(outputPath).catch(() => '')
-    const recall = wordRecall(truth, actual)
+    try {
+      await uploadFiles(page, [inputPath])
+      await chooseRadio(page, 'ocr-output', output.value)
 
-    const pageNote =
-      outputPages === null
-        ? '  UNREADABLE OUTPUT'
-        : outputPages === inputPages
+      const startedAt = Date.now()
+      // Matches both labels on purpose. The Modernist rebuild renamed this
+      // button from "Start OCR" to "Recognise text" on 2026-08-17 and nothing
+      // noticed for six weeks: every OCR run since then failed on the old
+      // pattern, recorded the failure, and the last real numbers stayed
+      // frozen at 2026-08-15 while looking current.
+      await clickByText(page, /recognise text|recognize text|start ocr/i)
+      const { elapsedMs, outputBytes, outputPath, outputMimeType } = await captureResult(
+        page,
+        startedAt,
+      )
+
+      // Same reasoning as compress: an OCR pass that quietly loses pages would
+      // otherwise post a respectable recall number on the pages it kept. Only
+      // meaningful for the PDF output - plain text has no page structure.
+      const outputPages =
+        outputMimeType === 'application/pdf' ? await countPages(outputPath).catch(() => null) : null
+      const recall = await scoreOcrOutput(outputPath, outputMimeType, truth)
+
+      runs.push({
+        outputFormat: output.value,
+        inputBytes,
+        outputBytes,
+        inputPages,
+        outputPages,
+        pagesLost: outputPages === null ? null : inputPages - outputPages,
+        outputMimeType,
+        elapsedMs,
+        wordRecall: recall,
+      })
+
+      const pageNote =
+        outputMimeType !== 'application/pdf'
           ? ''
-          : `  PAGES ${inputPages}->${outputPages}`
-    console.log(
-      `    ocr      ${bytesToMb(inputBytes)} MB -> ${bytesToMb(outputBytes)} MB, ` +
-        `word recall ${recall === null ? 'n/a' : `${(recall * 100).toFixed(1)}%`}, ` +
-        `${(elapsedMs / 1000).toFixed(1)}s${pageNote}`,
-    )
-
-    return {
-      tool: 'ocr',
-      file,
-      runs: [
-        {
-          inputBytes,
-          outputBytes,
-          inputPages,
-          outputPages,
-          pagesLost: outputPages === null ? null : inputPages - outputPages,
-          outputMimeType,
-          elapsedMs,
-          wordRecall: recall,
-        },
-      ],
+          : outputPages === null
+            ? '  UNREADABLE OUTPUT'
+            : outputPages === inputPages
+              ? ''
+              : `  PAGES ${inputPages}->${outputPages}`
+      console.log(
+        `    ocr:${output.label.padEnd(5)} ${bytesToMb(inputBytes)} MB -> ${bytesToMb(outputBytes)} MB, ` +
+          `word recall ${recall === null ? 'n/a' : `${(recall * 100).toFixed(1)}%`}, ` +
+          `${(elapsedMs / 1000).toFixed(1)}s${pageNote}`,
+      )
+    } catch (error) {
+      runs.push({
+        outputFormat: output.value,
+        inputBytes,
+        inputPages,
+        error: String(error.message ?? error),
+      })
+      console.log(`    ocr:${output.label.padEnd(5)} FAILED: ${error.message ?? error}`)
+    } finally {
+      await page.close()
     }
-  } catch (error) {
-    console.log(`    ocr      FAILED: ${error.message ?? error}`)
-    return {
-      tool: 'ocr',
-      file,
-      runs: [{ inputBytes, inputPages, error: String(error.message ?? error) }],
-    }
-  } finally {
-    await page.close()
   }
+
+  return { tool: 'ocr', file, runs }
 }
 
 /* -------------------------------------------------------------------- main */

@@ -70,15 +70,25 @@ const compressTable = () => {
 const ocrTable = () => {
   if (ocr.length === 0) return null
 
-  const rows = ['| Document | Word recall | Time | Output |', '|---|---|---|---|']
+  // Each document is measured in both output formats, so the format has to be
+  // a column. Without it the table repeats every filename with two different
+  // sizes and no way to tell which row is which.
+  const FORMATS = { 'searchable-pdf': 'Searchable PDF', 'text-only': 'Plain text' }
+  const rows = [
+    '| Document | Output format | Word recall | Time | Size |',
+    '|---|---|---|---|---|',
+  ]
   for (const entry of ocr) {
     for (const run of entry.runs) {
+      const format = FORMATS[run.outputFormat] ?? run.outputFormat ?? 'default'
       if (run.error) {
-        rows.push(`| ${entry.file} | failed | - | - |`)
+        rows.push(`| ${entry.file} | ${format} | failed | - | - |`)
         continue
       }
       const recall = run.wordRecall === null ? 'n/a' : `**${(run.wordRecall * 100).toFixed(1)}%**`
-      rows.push(`| ${entry.file} | ${recall} | ${seconds(run.elapsedMs)} | ${size(run.outputBytes)} |`)
+      rows.push(
+        `| ${entry.file} | ${format} | ${recall} | ${seconds(run.elapsedMs)} | ${size(run.outputBytes)} |`,
+      )
     }
   }
   return rows.join('\n')
@@ -93,14 +103,32 @@ const corpusList = () =>
 
 const ocrSection = ocrTable()
 
+/*
+ * `date` is when the article was first published and must survive a rerun;
+ * only `updated` follows the measurement. Emitting measuredAt for both reset
+ * an indexed article's publication date to today every time the benchmark
+ * ran, which is both an SEO own-goal and simply untrue.
+ */
+const publishedOn = await readFile(OUT, 'utf8')
+  .then((existing) => existing.match(/^date:\s*(\d{4}-\d{2}-\d{2})\s*$/m)?.[1])
+  .catch(() => null)
+
+/*
+ * Tags come from what was actually measured rather than a literal. The list
+ * used to be hard-coded without `ocr`, so a hand-added tag was silently
+ * dropped on every regeneration - the exact generator-versus-hand-edit drift
+ * this file exists to avoid.
+ */
+const tags = ['benchmarks', ...(compress.length > 0 ? ['compress'] : []), ...(ocr.length > 0 ? ['ocr'] : [])]
+
 const article = `---
 title: What PDF compression actually does, measured
 description: Every PDF site claims "up to 90% smaller" and none of them show their corpus. Here are the numbers for this one, the documents they came from, and how to reproduce them.
-date: ${data.measuredAt}
+date: ${publishedOn ?? data.measuredAt}
 updated: ${data.measuredAt}
 locale: en
 slug: pdf-compression-benchmarks
-tags: [benchmarks, compress]
+tags: [${tags.join(', ')}]
 ---
 
 "Reduce your PDF size by up to 90%." Every tool in this category says some

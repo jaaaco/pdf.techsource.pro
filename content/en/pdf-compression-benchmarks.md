@@ -2,7 +2,7 @@
 title: What PDF compression actually does, measured
 description: Every PDF site claims "up to 90% smaller" and none of them show their corpus. Here are the numbers for this one, the documents they came from, and how to reproduce them.
 date: 2026-08-15
-updated: 2026-08-15
+updated: 2026-09-27
 locale: en
 slug: pdf-compression-benchmarks
 tags: [benchmarks, compress, ocr]
@@ -40,14 +40,14 @@ are a synthetic ideal that flatters any tool measured against them.
 | photo-3p.pdf | ebook | 4.21 MB | 850 KB | **−80.3%** | 1.0 s |
 | scan-150dpi-5p.pdf | screen | 634 KB | 86 KB | **−86.5%** | 1.0 s |
 | scan-150dpi-5p.pdf | ebook | 634 KB | 247 KB | **−61.1%** | 1.0 s |
-| scan-300dpi-10p.pdf | screen | 3.94 MB | 171 KB | **−95.8%** | 2.0 s |
+| scan-300dpi-10p.pdf | screen | 3.94 MB | 171 KB | **−95.8%** | 3.0 s |
 | scan-300dpi-10p.pdf | ebook | 3.94 MB | 482 KB | **−88.1%** | 2.0 s |
 | scan-clean-300dpi-3p.pdf | screen | 949 KB | 52 KB | **−94.5%** | 1.0 s |
-| scan-clean-300dpi-3p.pdf | ebook | 949 KB | 142 KB | **−85%** | 1.0 s |
+| scan-clean-300dpi-3p.pdf | ebook | 949 KB | 142 KB | **−85%** | 2.0 s |
 | text-native-20p.pdf | screen | 16 KB | 16 KB | unchanged | 1.0 s |
 | text-native-20p.pdf | ebook | 16 KB | 16 KB | unchanged | 1.0 s |
 
-Measured on 2026-08-15 against https://pdf.techsource.pro, in Chrome/151.0.7922.138.
+Measured on 2026-09-27 against https://pdf.techsource.pro, in Chrome/154.0.8037.58.
 
 Three things worth pulling out of that table.
 
@@ -79,11 +79,14 @@ impression. The metric is word recall: of the words that should be findable,
 how many are. That is the number that maps onto "can I search this document",
 which is the only reason to run OCR at all.
 
-| Document | Word recall | Time | Output |
-|---|---|---|---|
-| scan-150dpi-5p.pdf | **100.0%** | 5.0 s | 667 KB |
-| scan-300dpi-10p.pdf | **100.0%** | 5.0 s | 4.00 MB |
-| scan-clean-300dpi-3p.pdf | **100.0%** | 2.0 s | 972 KB |
+| Document | Output format | Word recall | Time | Size |
+|---|---|---|---|---|
+| scan-150dpi-5p.pdf | Searchable PDF | **100.0%** | 5.0 s | 667 KB |
+| scan-150dpi-5p.pdf | Plain text | **100.0%** | 3.0 s | 4 KB |
+| scan-300dpi-10p.pdf | Searchable PDF | **100.0%** | 5.0 s | 4.00 MB |
+| scan-300dpi-10p.pdf | Plain text | **100.0%** | 5.0 s | 8 KB |
+| scan-clean-300dpi-3p.pdf | Searchable PDF | **100.0%** | 2.0 s | 972 KB |
+| scan-clean-300dpi-3p.pdf | Plain text | **100.0%** | 2.0 s | 2 KB |
 
 ## Reproducing this
 
