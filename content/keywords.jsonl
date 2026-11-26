@@ -1572,7 +1572,7 @@
 {"phrase":"ocr pdf online 2 pdf","lang":"en","source":"google-suggest","intent":"tool","firstSeen":"2026-08-15","status":"new"}
 {"phrase":"ocr pdf on mac","lang":"en","source":"google-suggest","intent":"informational","firstSeen":"2026-08-15","status":"new"}
 {"phrase":"ocr pdf open source","lang":"en","source":"google-suggest","intent":"informational","firstSeen":"2026-08-15","status":"new"}
-{"phrase":"ocr pdf offline","lang":"en","source":"google-suggest","intent":"privacy","firstSeen":"2026-08-15","status":"new"}
+{"phrase":"ocr pdf offline","lang":"en","source":"google-suggest","intent":"privacy","firstSeen":"2026-08-15","status":"published","slug":"ocr-pdf-offline","publishedAt":"2026-11-26"}
 {"phrase":"ocr pdf python","lang":"en","source":"google-suggest","intent":"informational","firstSeen":"2026-08-15","status":"new"}
 {"phrase":"ocr pdf persian","lang":"en","source":"google-suggest","intent":"informational","firstSeen":"2026-08-15","status":"new"}
 {"phrase":"ocr pdf pdf24","lang":"en","source":"google-suggest","intent":"informational","firstSeen":"2026-08-15","status":"new"}
